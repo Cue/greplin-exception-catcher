@@ -1,0 +1,5 @@
+{
+  "name": "Exception Catcher",
+  "secretKey": "insert_your_secret_key_here",
+  "requireAuth": true
+}

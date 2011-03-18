@@ -1,0 +1,10 @@
+<head>
+  <title>{{ title|escape }}</title>
+  <link href="/static/style.css" rel="stylesheet"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>
+  <script type="text/javascript" src="/static/plugins.js"></script>
+  <script type="text/javascript" src="/static/common.js"></script>
+  {% for script in extraScripts %}
+    <script type="text/javascript" src="/static/{{ script }}.js"></script>
+  {% endfor %}
+</head>

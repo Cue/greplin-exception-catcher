@@ -1,0 +1,8 @@
+{% if filters %}
+  <div id="filters">
+    <h3>Filters:</h3>
+    {% for filter in filters %}
+      <span class="filter">{{ filter.0|escape }}:{{ filter.1|escape }}</span>
+    {% endfor %}
+  </div>
+{% endif %}

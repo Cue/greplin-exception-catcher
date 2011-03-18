@@ -1,0 +1,108 @@
+/*
+ * Copyright 2011 The greplin-exception-catcher Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html, body, td, th {
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+h1 {
+  margin: 10px 0;
+  padding: 0;
+}
+
+table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+.error-type, .error-message {
+  word-wrap: break-word;
+}
+
+a {
+  color: #14d;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+th, td{
+  vertical-align: top;
+  text-align: left;
+  padding-right: 20px;
+  border-bottom: 1px dotted #999;
+  padding-bottom: 4px;
+}
+
+p {
+  margin: 0;
+  padding: 0;
+}
+
+a.message {
+  font-weight: bold;
+}
+
+.environments, .servers {
+  color: #555;
+  font-size: 12px;
+}
+
+.environments a, .servers a {
+  color: #555
+}
+
+#filters {
+  margin-bottom: 10px;
+}
+
+#filters h3 {
+  font-size: 14px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+#filters .filter {
+  display: inline-block;
+  border: 1px solid #999;
+  border-radius: 3px;
+  -moz-border-radius: 3px;
+  -webkit-border-radius: 3px;
+  padding: 2px 8px;
+  background-color: #eee;
+  cursor: pointer;
+}
+
+#user {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+td.when, td.instance-date {
+  white-space: nowrap;
+}
+
+p.footer {
+  margin: 16px 16px 24px 16px;
+  font-weight: bold;
+  text-align: center;
+}

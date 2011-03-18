@@ -1,0 +1,51 @@
+<html>
+  {% include "common/head.html" %}
+  <body>
+    {% include "common/user.html" %}
+    <h1>{{ title|escape }}</h1>
+    {% include "common/filters.html" %}
+    <table>
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Error type</th>
+          <th>Error message</th>
+          <th>Count</th>
+          <th>When</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for error in errors %}
+          <tr>
+            <td class="project"><a href="#" class="project">{{ error.project|escape }}</a></td>
+            <td class="error-type">{{ error.type|escape }}</td>
+            <td class="error-message">
+              <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
+              <p class="environments">
+                {% for env in error.environments %}
+                  <a href="#" class="environment">{{ env|escape }}</a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </p>
+              <p class="servers">
+                {% for server in error.servers %}
+                  <a href="#" class="server">{{ server|escape }}</a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </p>
+            </td>
+            <td class="error-count">{{ error.count }}</td>
+            <td class="when"><span class="timeago" title="{{ error.lastOccurrence.isoformat }}Z">{{ error.lastOccurrence }}</span></td>
+            <td class="error-action"><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="footer">
+      {% if hasMore %}
+        <a class="next" href="#">Next page</a>
+        &nbsp;&nbsp;
+      {% endif %}
+      <a class="resolveAll" href="#">Resolve all</a>
+    </p>
+  </body>
+</html>

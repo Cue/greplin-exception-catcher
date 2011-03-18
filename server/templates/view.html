@@ -1,0 +1,59 @@
+<html>
+  {% include "common/head.html" %}
+  <body>
+    {% include "common/user.html" %}
+
+    <h1>Exception: <code>{{ error.lastMessage|escape }}</code></h1>
+
+    <p><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></p>
+
+    {% include "common/filters.html" %}
+
+    <h2>Count</h2>
+    <p class="value">{{ error.count }}</p>
+
+    <h2>Project</h2>
+    <p class="value">
+      <a href="#" class="project">{{ error.project|escape }}</a>
+    </p>
+
+    <h2>Environments</h2>
+    <p class="value">
+      {% for env in error.environments %}
+        <a href="#" class="environment">{{ env|escape }}</a>{% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+
+    <h2>Type</h2>
+    <p class="value">{{ error.type|escape }}</p>
+
+    <h2>Backtrace</h2>
+    <pre>{{ error.backtrace|escape }}</pre>
+
+    <h2>Instances</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Environment</th>
+          <th>Server</th>
+          <th>Date</th>
+          <th>Message</th>
+          <th>Log</th>
+          <th>Context</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for instance in instances %}
+          <tr>
+            <td class="instance-environment">{{ instance.environment|escape }}</td>
+            <td class="instance-server"><a href="#" class="server">{{ instance.server|escape }}</a></td>
+            <td class="instance-date"><span class="timeago" title="{{ instance.date.isoformat }}Z">{{ instance.date }}</span></td>
+            <td class="instance-message">{{ instance.message|escape|linebreaksbr|default:"none" }}</td>
+            <td class="instance-log">{{ instance.logMessage|escape|linebreaksbr }}</td>
+            <td class="instance-context">{{ instance.context|escape }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
