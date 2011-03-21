@@ -15,7 +15,6 @@
 """Classes for logging exceptions to files suitable for sending to gec."""
 
 
-# CAMEL CASING: For some reason, python uses camelCase for its logging functions. Pylint disabled below.
 
 import json
 import os.path
