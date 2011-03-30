@@ -46,7 +46,7 @@ static NSMutableDictionary * uploadMap = nil;
 + (NSString *)crashFileDir {
     NSArray * paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString * path = [paths objectAtIndex:0];
-    return [path stringByAppendingPathComponent:@"crashes"];
+    return [path stringByAppendingPathComponent:@"gec"];
 }
 
 + (NSString *)crashFilePath {
