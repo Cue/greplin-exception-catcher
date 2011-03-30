@@ -17,13 +17,15 @@
 #import "GecErrorReporter.h"
 #import "JSON.h" // From http://stig.github.com/json-framework/
 
-static GecErrorReporter *sharedInstance = nil;
+static GecErrorReporter * sharedInstance = nil;
+static NSMutableDictionary * uploadMap = nil;
 
+@interface UploadDelegate : NSObject {
+    NSString * _filename;        
+}
 
-@interface UploadDelegate : NSObject
+- (id)initWithFilename:(NSString*)filename;    
 
-- (void)connectionDidFinishLoading:(NSURLConnection *)connection;
-    
 @end
 
 
@@ -36,73 +38,148 @@ static GecErrorReporter *sharedInstance = nil;
 
 + (GecErrorReporter *)sharedInstance {
     if (sharedInstance == nil) {
-        sharedInstance = [[[GecErrorReporter alloc] init] retain];
+        sharedInstance = [[GecErrorReporter alloc] init];
     }
     return sharedInstance;
 }
 
-+ (NSString *)crashFilePath {
++ (NSString *)crashFileDir {
     NSArray * paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    return [[paths objectAtIndex:0] stringByAppendingString:@"/crash.gec"];
+    NSString * path = [paths objectAtIndex:0];
+    return [path stringByAppendingPathComponent:@"crashes"];
+}
+
++ (NSString *)crashFilePath {
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+    NSString * pathString = [[self crashFileDir] stringByAppendingFormat:@"/crash_%d.gec",timestamp];
+                    
+    return pathString;
+}
+
++ (void)initialize {    
+    uploadMap = [[NSMutableDictionary alloc] init];
+    
+    NSString * crashDir = [self crashFileDir];
+    
+    NSFileManager * fm = [NSFileManager defaultManager];
+    if (![fm fileExistsAtPath:crashDir isDirectory:NULL]) {
+        [fm createDirectoryAtPath:crashDir withIntermediateDirectories:YES attributes:nil error:NULL];
+    }
+}
+
+- (id)init {
+    self = [super init];
+    if (self) {
+        //Nothing for now.
+    }
+    return self;
 }
 
 - (void)reportError:(NSException *)exception andMessage:(NSString *)message {
-    NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:7];
-    [result setObject:project forKey:@"project"];
-    [result setObject:environment forKey:@"environment"];
-    [result setObject:[UIDevice currentDevice].model forKey:@"serverName"];
-    [result setObject:[exception name] forKey:@"type"];
-    [result setObject:[exception reason] forKey:@"message"];
-    [result setObject:message forKey:@"logMessage"];
-    [result setObject:[NSNumber numberWithInt:(int)[[NSDate date] timeIntervalSince1970]] forKey:@"timestamp"];
-    
-    [result setObject:[[exception callStackSymbols] componentsJoinedByString:@"\n"] forKey:@"backtrace"];
-
-    NSData *jsonData = [[result JSONRepresentation] dataUsingEncoding:NSUTF8StringEncoding];
-    [jsonData writeToFile:[GecErrorReporter crashFilePath] atomically:YES];
+    @try {
+        @throw exception;
+    }
+    @catch (NSException *exception_) {
+        NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:7];
+        [result setObject:project forKey:@"project"];
+        [result setObject:environment forKey:@"environment"];
+        [result setObject:[UIDevice currentDevice].model forKey:@"serverName"];
+        [result setObject:[exception_ name] forKey:@"type"];
+        [result setObject:[exception_ reason] forKey:@"message"];
+        [result setObject:message forKey:@"logMessage"];
+        [result setObject:[NSNumber numberWithInt:(int)[[NSDate date] timeIntervalSince1970]] forKey:@"timestamp"];
+        
+        [result setObject:[[exception_ callStackSymbols] componentsJoinedByString:@"\n"] forKey:@"backtrace"];
+        
+        NSData *jsonData = [[result JSONRepresentation] dataUsingEncoding:NSUTF8StringEncoding];
+        [jsonData writeToFile:[GecErrorReporter crashFilePath] atomically:YES];
+        
+        [self syncErrors];        
+    }
 }
 
 
-- (void)uploadError {
+- (void)uploadError:(NSString*)filename {
+    
+    UploadDelegate * delegate = [uploadMap objectForKey:filename];
+    
+    //We don't want multiple uploaders of the same file.
+    if (nil!=delegate) {
+        return;
+    }
+    
+    delegate = [[UploadDelegate alloc] initWithFilename:filename];
+    [uploadMap setObject:delegate forKey:filename];
+    
     NSString *path = [@"report?key=" stringByAppendingString:secret];
     NSURL *url = [NSURL URLWithString:path relativeToURL:serverAddress];
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     [request setHTTPMethod:@"POST"];
     [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-    [request setHTTPBody:[NSData dataWithContentsOfFile:[GecErrorReporter crashFilePath]]];
+    [request setHTTPBody:[NSData dataWithContentsOfFile:filename]];
     
-    [NSURLConnection connectionWithRequest:request delegate:[[[UploadDelegate alloc] init] autorelease]];
+    [[NSURLConnection alloc] initWithRequest:request delegate:delegate];
 }
 
 - (void)syncErrors {
-    if ([[NSFileManager defaultManager] fileExistsAtPath:[GecErrorReporter crashFilePath]]) {
-        [self uploadError];
+    NSString* dir = [GecErrorReporter crashFileDir];
+    NSError* error = nil;
+	
+    NSArray* files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
+                                                                         error:&error];
+    
+    for (NSString * filename in files) {
+        if ([filename hasSuffix:@".gec"]) {
+            NSString * fullname = [[GecErrorReporter crashFileDir] stringByAppendingPathComponent:filename];
+            [self uploadError:fullname];            
+        }
     }
 }
 
-- (void)deleteCrashFile {
-    [[NSFileManager defaultManager] removeItemAtPath:[GecErrorReporter crashFilePath] error:nil];   
-}
-
 - (void)dealloc {
-    [super dealloc];
     [serverAddress release];
     [secret release];
     [environment release];
     [project release];
+    [super dealloc];
 }
 
 @end
 
-
 @implementation UploadDelegate
 
+- (id)initWithFilename:(NSString *)filename {
+    self = [super init];
+    if (self) {
+        _filename = [filename retain];
+    }
+    return self;
+}
+
+- (void)deleteCrashFile {
+    [[NSFileManager defaultManager] removeItemAtPath:_filename error:nil];   
+}
+
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-    [[GecErrorReporter sharedInstance] deleteCrashFile];
+    NSLog(@"Successfully uploaded exception for file: %@", _filename);
+    [self deleteCrashFile];
+    
+    [uploadMap removeObjectForKey:_filename];
+    [connection release];
+    [self autorelease];
 }
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
     NSLog(@"Failed to upload exception: %@", error);
+    
+    [uploadMap removeObjectForKey:_filename];
+    [connection release];
+    [self autorelease];
+}
+
+- (void)dealloc {
+    [_filename release];
+    [super dealloc];
 }
 
 @end
