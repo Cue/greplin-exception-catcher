@@ -16,6 +16,7 @@
 
 #import <Foundation/Foundation.h>
 
+#define GEC_REPORT_ERROR(__exception__,__message__) [[GecErrorReporter sharedInstance] reportError:__exception__ andMessage:__message__];
 
 @interface GecErrorReporter : NSObject {
     NSURL *serverAddress;
