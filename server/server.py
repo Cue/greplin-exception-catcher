@@ -26,7 +26,7 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 
 import backtrace
 import collections
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import itertools
 try:
@@ -353,6 +353,26 @@ class ReportPage(webapp.RequestHandler):
 
 
 
+class StatPage(webapp.RequestHandler):
+  """Page handler for collecting error instance stats."""
+
+  def get(self):
+    """Handles a new error report via POST."""
+    key = self.request.get('key')
+
+    if key != SECRET_KEY:
+      self.error(403)
+      return
+
+    counts = []
+    for minutes in self.request.get('minutes').split():
+      query = LoggedErrorInstance.all()
+      counts.append(query.filter('date >=', datetime.now() - timedelta(minutes = int(minutes))).count())
+
+    self.response.out.write(' '.join((str(count) for count in counts)))
+
+
+
 class ReportWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
 
@@ -498,6 +518,8 @@ def main():
 
         ('/view/(.*)', ViewPage),
         ('/resolve/(.*)', ResolvePage),
+
+        ('/stats', StatPage),
       ],
       debug=True)
 
