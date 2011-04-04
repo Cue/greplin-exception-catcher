@@ -195,6 +195,7 @@ def filterErrors(errors, instanceFilters):
     errorDict = {}
     for name, prop in LoggedErrorV2.properties().items():
       errorDict[name] = prop.get_value_for_datastore(error)
+    errorDict['parent_key'] = error.parent_key()
 
     instances = instanceMap[error.key()]
     if instances:
