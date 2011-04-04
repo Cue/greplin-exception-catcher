@@ -3,7 +3,6 @@ indexes:
 # Indexes for errors.
 
 - kind: LoggedErrorV2
-  ancestor: yes
   properties:
   - name: active
   - name: environment
@@ -14,6 +13,15 @@ indexes:
   ancestor: yes
   properties:
   - name: active
+  - name: environment
+  - name: lastOccurrence
+    direction: desc
+
+
+
+- kind: LoggedErrorV2
+  properties:
+  - name: active
   - name: lastOccurrence
     direction: desc
 
@@ -23,6 +31,7 @@ indexes:
   - name: active
   - name: lastOccurrence
     direction: desc
+
 
 
 # Indexes for error instances.
@@ -34,10 +43,25 @@ indexes:
     direction: desc
 
 
+
+- kind: LoggedErrorInstanceV2
+  properties:
+  - name: affectedUser
+  - name: date
+    direction: desc
+
 - kind: LoggedErrorInstanceV2
   ancestor: yes
   properties:
   - name: affectedUser
+  - name: date
+    direction: desc
+
+
+
+- kind: LoggedErrorInstanceV2
+  properties:
+  - name: server
   - name: date
     direction: desc
 
@@ -47,6 +71,15 @@ indexes:
   - name: server
   - name: date
     direction: desc
+
+
+
+- kind: LoggedErrorInstanceV2
+  properties:
+  - name: environment
+  - name: date
+    direction: desc
+
 
 - kind: LoggedErrorInstanceV2
   ancestor: yes
