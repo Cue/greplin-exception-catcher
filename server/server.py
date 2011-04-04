@@ -75,6 +75,19 @@ def generateHash(exceptionType, backtraceText):
 ####### Data model. #######
 
 
+class Level(object):
+  """Enumeration of error levels."""
+
+  DEBUG = 0
+
+  INFO = 10
+
+  WARNING = 20
+
+  ERROR = 30
+
+
+
 class Queue(db.Model):
   """Model for a task in the queue."""
 
@@ -82,10 +95,13 @@ class Queue(db.Model):
 
 
 
-class LoggedError(db.Model):
-  """Model for a logged error."""
+class Project(db.Model):
+  """Model for a project that contains errors."""
 
-  project = db.StringProperty()
+
+
+class LoggedErrorV2(db.Model):
+  """Model for a logged error."""
 
   backtrace = db.TextProperty()
 
@@ -96,6 +112,8 @@ class LoggedError(db.Model):
   active = db.BooleanProperty()
 
   count = db.IntegerProperty()
+
+  level = db.IntegerProperty(default = Level.ERROR)
 
   firstOccurrence = db.DateTimeProperty()
 
@@ -109,7 +127,7 @@ class LoggedError(db.Model):
 
 
 
-class LoggedErrorInstance(db.Model):
+class LoggedErrorInstanceV2(db.Model):
   """Model for each occurrence of an error."""
 
   environment = db.StringProperty()
@@ -128,18 +146,16 @@ class LoggedErrorInstance(db.Model):
 
 
 
-INSTANCE_FILTERS = frozenset(['environment', 'server', 'affectedUser'])
+INSTANCE_FILTERS = ('environment', 'server', 'affectedUser')
 
-ERROR_FILTERS = frozenset(['project'])
-
-INTEGER_FILTERS = frozenset(['affectedUser'])
+INTEGER_FILTERS = ('affectedUser',)
 
 
 def getFilters(request):
   """Gets the filters applied to the given request."""
   filters = {}
   for key, value in request.params.items():
-    if key in INSTANCE_FILTERS or key in ERROR_FILTERS:
+    if key in INSTANCE_FILTERS or key == 'project':
       filters[key] = value
   return filters
 
@@ -154,11 +170,11 @@ def filterData(dataSet, key, value):
 
 def getErrors(filters, limit, offset):
   """Gets a list of errors, filtered by the given filters."""
-  errors = LoggedError.all().filter('active =', True)
+  errors = LoggedErrorV2.all().filter('active =', True)
   instanceFilters = {}
   for key, value in filters.items():
-    if key in ERROR_FILTERS:
-      errors = filterData(errors, key, value)
+    if key == 'project':
+      errors = errors.ancestor(getProject(value))
     elif key in INSTANCE_FILTERS:
       instanceFilters[key] = value
   errors = errors.order('-lastOccurrence')
@@ -177,7 +193,7 @@ def filterErrors(errors, instanceFilters):
 
   for error in errors:
     errorDict = {}
-    for name, prop in LoggedError.properties().items():
+    for name, prop in LoggedErrorV2.properties().items():
       errorDict[name] = prop.get_value_for_datastore(error)
 
     instances = instanceMap[error.key()]
@@ -201,7 +217,7 @@ def filterErrors(errors, instanceFilters):
 def getInstances(filters, parent = None):
   """Gets a list of instances of the given parent error, filtered by the given filters."""
 
-  query = LoggedErrorInstance.all()
+  query = LoggedErrorInstanceV2.all()
   if parent:
     query = query.ancestor(parent)
 
@@ -213,19 +229,27 @@ def getInstances(filters, parent = None):
   return query.order('-date')
 
 
+def getProject(name):
+  """Gets the project with the given name."""
+  serialized = memcache.get('project:%s' % name)
+  if serialized:
+    return db.model_from_protobuf(serialized)
+  else:
+    return Project.get_or_insert(name)
+
+
 def getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp):
   """Gets (and updates) the error matching the given report, or None if no matching error is found."""
   error = None
+
+  project = getProject(project)
 
   key = '%s|%s' % (project, errorHash)
   serialized = memcache.get(key)
   if serialized:
     error = db.model_from_protobuf(serialized)
   else:
-    q = LoggedError.all()
-    q.filter('project =', project)
-    q.filter('hash =', errorHash)
-    q.filter('active =', True)
+    q = LoggedErrorV2.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
 
     for possibility in q:
       if backtrace.normalizeBacktrace(possibility.backtrace) == backtrace.normalizeBacktrace(backtraceText):
@@ -265,8 +289,7 @@ def putException(exception):
 
   error = getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp)
   if not error:
-    error = LoggedError()
-    error.project = project
+    error = LoggedErrorV2(parent = getProject(project))
     error.backtrace = backtraceText
     exceptionType = exceptionType.replace('\n', ' ')
     if len(exceptionType) > 500:
@@ -278,11 +301,11 @@ def putException(exception):
     error.firstOccurrence = timestamp
     error.lastOccurrence = timestamp
     error.lastMessage = message[:300]
-    error.environments = [environment]
+    error.environments = [str(environment)]
     error.servers = [server]
     error.put()
 
-  instance = LoggedErrorInstance(parent = error)
+  instance = LoggedErrorInstanceV2(parent = error)
   instance.environment = environment
   instance.date = timestamp
   instance.message = message
@@ -365,8 +388,15 @@ class StatPage(webapp.RequestHandler):
       return
 
     counts = []
+    project = self.request.get('project')
+    if project:
+      project = getProject(project)
+      if not project:
+        self.response.out.write(' '.join(['0' for _ in counts]))
     for minutes in self.request.get('minutes').split():
-      query = LoggedErrorInstance.all()
+      query = LoggedErrorInstanceV2.all()
+      if project:
+        query = query.ancestor(project)
       counts.append(query.filter('date >=', datetime.now() - timedelta(minutes = int(minutes))).count())
 
     self.response.out.write(' '.join((str(count) for count in counts)))
@@ -375,42 +405,6 @@ class StatPage(webapp.RequestHandler):
 
 class ReportWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
-
-  def getAggregatedError(self, project, environment, server, backtraceText, errorHash, message, timestamp):
-    """Gets (and updates) the error matching the given report, or None if no matching error is found."""
-    error = None
-
-    key = '%s|%s' % (project, errorHash)
-    serialized = memcache.get(key)
-    if serialized:
-      error = db.model_from_protobuf(serialized)
-    else:
-      q = LoggedError.all()
-      q.filter('project =', project)
-      q.filter('hash =', errorHash)
-      q.filter('active =', True)
-
-      for possibility in q:
-        if backtrace.normalizeBacktrace(possibility.backtrace) == backtrace.normalizeBacktrace(backtraceText):
-          error = possibility
-          break
-
-    if error:
-      error.count += 1
-      error.firstOccurrence = min(error.firstOccurrence, timestamp)
-      if timestamp > error.lastOccurrence:
-        error.lastOccurrence = timestamp
-        error.backtrace = backtraceText
-        error.lastMessage = message[:300]
-
-      if environment not in error.environments:
-        error.environments.append(environment)
-      if server not in error.servers:
-        error.servers.append(server)
-      error.put()
-      memcache.set(key, db.model_to_protobuf(error))
-      return error
-
 
   def post(self):
     """Handles a new error report via POST."""
@@ -457,7 +451,7 @@ class ViewPage(AuthPage):
   def doAuthenticatedGet(self, user, *args):
     key, = args
     self.response.headers['Content-Type'] = 'text/html'
-    error = LoggedError.get(key)
+    error = LoggedErrorV2.get(key)
     filters = getFilters(self.request)
     context = {
       'title': '%s - %s' % (error.lastMessage, NAME),
@@ -477,11 +471,11 @@ class ResolvePage(AuthPage):
   def doAuthenticatedGet(self, _, *args):
     key, = args
     self.response.headers['Content-Type'] = 'text/plain'
-    error = LoggedError.get(key)
+    error = LoggedErrorV2.get(key)
     error.active = False
     error.put()
 
-    key = '%s|%s' % (error.project, error.hash)
+    key = '%s|%s' % (error.parent_key().name(), error.hash)
     memcache.delete(key)
 
     self.response.out.write('ok')
@@ -493,9 +487,9 @@ class ClearDatabasePage(AuthPage):
 
   def doAuthenticatedGet(self, _):
     if users.is_current_user_admin():
-      for error in LoggedError.all():
+      for error in LoggedErrorV2.all():
         error.delete()
-      for instance in LoggedErrorInstance.all():
+      for instance in LoggedErrorInstanceV2.all():
         instance.delete()
       self.response.out.write('Done')
     else:

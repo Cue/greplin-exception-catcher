@@ -18,7 +18,7 @@
       <tbody>
         {% for error in errors %}
           <tr>
-            <td class="project"><a href="#" class="project">{{ error.project|escape }}</a></td>
+            <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
             <td class="error-type">{{ error.type|escape }}</td>
             <td class="error-message">
               <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
