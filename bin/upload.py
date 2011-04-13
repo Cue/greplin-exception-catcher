@@ -46,7 +46,11 @@ def main():
     if filename.endswith('.gec.json') and not '_____' in filename:
       if os.path.exists(filename):
         processingFilename = filename + '.processing'
-        shutil.move(filename, processingFilename)
+        try:
+          shutil.move(filename, processingFilename)
+        except IOError:
+          # Usually this happens when another process processes the same file.
+          continue
 
         try:
           with open(processingFilename) as f:
