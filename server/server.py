@@ -35,6 +35,8 @@ except ImportError:
   import json
 import os
 
+from datamodel import Level, Queue, Project, LoggedErrorV2, LoggedErrorInstanceV2
+
 
 ####### Parse the configuration. #######
 
@@ -70,80 +72,6 @@ def generateHash(exceptionType, backtraceText):
   hasher.update(exceptionType.encode('utf-8'))
   hasher.update(backtrace.normalizeBacktrace(backtraceText.encode('utf-8')))
   return hasher.hexdigest()
-
-
-####### Data model. #######
-
-
-class Level(object):
-  """Enumeration of error levels."""
-
-  DEBUG = 0
-
-  INFO = 10
-
-  WARNING = 20
-
-  ERROR = 30
-
-
-
-class Queue(db.Model):
-  """Model for a task in the queue."""
-
-  payload = db.TextProperty()
-
-
-
-class Project(db.Model):
-  """Model for a project that contains errors."""
-
-
-
-class LoggedErrorV2(db.Model):
-  """Model for a logged error."""
-
-  backtrace = db.TextProperty()
-
-  type = db.StringProperty()
-
-  hash = db.StringProperty()
-
-  active = db.BooleanProperty()
-
-  count = db.IntegerProperty()
-
-  level = db.IntegerProperty(default = Level.ERROR)
-
-  firstOccurrence = db.DateTimeProperty()
-
-  lastOccurrence = db.DateTimeProperty()
-
-  lastMessage = db.StringProperty(multiline=True)
-
-  environments = db.StringListProperty()
-
-  servers = db.StringListProperty()
-
-
-
-class LoggedErrorInstanceV2(db.Model):
-  """Model for each occurrence of an error."""
-
-  environment = db.StringProperty()
-
-  date = db.DateTimeProperty()
-
-  message = db.TextProperty()
-
-  server = db.StringProperty()
-
-  logMessage = db.TextProperty()
-
-  context = db.TextProperty()
-
-  affectedUser = db.IntegerProperty()
-
 
 
 INSTANCE_FILTERS = ('environment', 'server', 'affectedUser')
