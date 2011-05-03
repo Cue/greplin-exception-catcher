@@ -1,4 +1,6 @@
 queue:
+- name: instances
+  rate: 100/s
 - name: default
   rate: 100/s
 total_storage_limit: 600M

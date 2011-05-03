@@ -35,7 +35,7 @@ except ImportError:
   import json
 import os
 
-from datamodel import Level, Queue, Project, LoggedErrorV2, LoggedErrorInstanceV2
+from datamodel import  Queue, Project, LoggedErrorV2, LoggedErrorInstanceV2
 
 
 ####### Parse the configuration. #######
@@ -298,8 +298,8 @@ class ReportPage(webapp.RequestHandler):
       self.error(403)
       return
 
-    # Add the task to the default queue.
-    task = Queue(payload = self.request.body)
+    # Add the task to the instances queue.
+    task = Queue('instances', payload = self.request.body)
     task.put()
     taskqueue.add(url='/reportWorker', params={'key': task.key()})
 
