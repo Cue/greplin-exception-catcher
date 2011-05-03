@@ -299,9 +299,9 @@ class ReportPage(webapp.RequestHandler):
       return
 
     # Add the task to the instances queue.
-    task = Queue('instances', payload = self.request.body)
+    task = Queue(payload = self.request.body)
     task.put()
-    taskqueue.add(url='/reportWorker', params={'key': task.key()})
+    taskqueue.add(queue_name='instances', url='/reportWorker', params={'key': task.key()})
 
 
 
