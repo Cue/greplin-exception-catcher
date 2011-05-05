@@ -32,11 +32,6 @@ FILES_TO_KEEP = 2000
 SETTINGS = {}
 
 
-def handleError(e, message, filename):
-  """Handles an error by printing it and marking the file as available but with an additional strike."""
-  print message % filename
-  print e
-  shutil.move(filename + '.processing', os.path.join(os.path.dirname(filename), '_' + os.path.basename(filename)))
 
 
 def reportTooManyExceptions(deleted, example):
@@ -51,32 +46,43 @@ def reportTooManyExceptions(deleted, example):
   
 
 def sendException(jsonData, filename):
-  """Send an exception to the GEC server"""
+  """Send an exception to the GEC server
+     Returns True if sending succeeded
+     If the send fails, returns False and moves the file to '_' + filename"""
+
+
+  def handleError(e, message):
+    """Handles an error by printing it and marking the file as available but with an additional strike."""
+    print message % filename
+    print e
+    shutil.move(filename + '.processing', os.path.join(os.path.dirname(filename), '_' + os.path.basename(filename)))
+
+
   request = urllib2.Request('%s/report?key=%s' % (SETTINGS["server"], SETTINGS["secretKey"]),
                             json.dumps(jsonData),
                             {'Content-Type': 'application/json'})
   try:
     response = urllib2.urlopen(request)
+
   except urllib2.HTTPError, e:
-    handleError(e, 'Error from server while uploading %s', filename)
+    handleError(e, 'Error from server while uploading %s')
     print e.read()
-    return
+    return False
+
   except urllib2.URLError, e:
-    handleError(e, 'Error while uploading %s', filename)
-    return
+    handleError(e, 'Error while uploading %s')
+    return False
+
   status = response.getcode()
+
   if status != 200:
     raise Exception('Unexpected status code: %d' % status)
 
-  
-def main():
-  """Runs the gec sender."""
-  SETTINGS["server"] = sys.argv[1]
-  SETTINGS["secretKey"] = sys.argv[2]
-  path = sys.argv[3]
-  
-  files = [os.path.join(path, f) for f in os.listdir(path)
-           if f.endswith(".gec.json") and not '_____' in f]
+  return True
+
+
+def processFiles(files):
+  """Sends each exception file in files to gec"""
 
   # only keep the newest FILES_TO_KEEP entries
   outstanding = len(files)
@@ -108,8 +114,45 @@ def main():
         os.remove(processingFilename)
         continue
       result['timestamp'] = os.stat(processingFilename)[stat.ST_CTIME]
-      sendException(result, filename)
-      os.remove(processingFilename)
+
+      # Only delete on success - otherwise the file was moved
+      if sendException(result, filename):
+        os.remove(processingFilename)
+
+
+def main():
+  """Runs the gec sender."""
+
+  if len(sys.argv) not in (3, 4):
+    print """USAGE: upload.py SERVER SECRET_KEY PATH [LOCKNAME]
+
+LOCKNAME defaults to 'upload-lock'"""
+    exit(-1)
+
+
+  SETTINGS["server"] = sys.argv[1]
+  SETTINGS["secretKey"] = sys.argv[2]
+  path = sys.argv[3]
+
+  lockName = sys.argv[4] if len(sys.argv) == 5 else 'upload-lock'
+  lock = os.path.join(path, lockName)
+
+
+  # mkdir will fail if the directory already exists, so we can use it as a file lock
+  try:
+    os.mkdir(lock)
+  except OSError:
+    print "Lock directory '%s' already exists." % lock
+    print "Another upload.py may be running. If not, delete the directory and try again."
+    exit(-1)
+
+  files = [os.path.join(path, f) for f in os.listdir(path)
+           if f.endswith(".gec.json") and not '_____' in f]
+
+  try:
+    processFiles(files)
+  finally:
+    os.rmdir(lock)
 
 
 if __name__ == '__main__':
