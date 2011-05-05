@@ -16,6 +16,8 @@
 
 from google.appengine.ext import db
 
+import config
+
 
 
 class Level(object):
@@ -43,7 +45,7 @@ class Project(db.Model):
 
 
 
-class LoggedErrorV2(db.Model):
+class LoggedError(db.Model):
   """Model for a logged error."""
 
   backtrace = db.TextProperty()
@@ -69,8 +71,14 @@ class LoggedErrorV2(db.Model):
   servers = db.StringListProperty()
 
 
+  @classmethod
+  def kind(cls):
+    """Returns the datastore name for this model class."""
+    return 'LoggedErrorV%d' % (config.get('datastoreVersion', 2))
 
-class LoggedErrorInstanceV2(db.Model):
+
+
+class LoggedErrorInstance(db.Model):
   """Model for each occurrence of an error."""
 
   environment = db.StringProperty()
@@ -86,3 +94,9 @@ class LoggedErrorInstanceV2(db.Model):
   context = db.TextProperty()
 
   affectedUser = db.IntegerProperty()
+
+
+  @classmethod
+  def kind(cls):
+    """Returns the datastore name for this model class."""
+    return 'LoggedErrorInstanceV%d' % (config.get('datastoreVersion', 2))

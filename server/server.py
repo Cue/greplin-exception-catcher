@@ -25,6 +25,8 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 import backtrace
+import config
+
 import collections
 from datetime import datetime, timedelta
 import hashlib
@@ -35,27 +37,16 @@ except ImportError:
   import json
 import os
 
-from datamodel import  Queue, Project, LoggedErrorV2, LoggedErrorInstanceV2
+from datamodel import  Queue, Project, LoggedError, LoggedErrorInstance
 
 
 ####### Parse the configuration. #######
 
-def loadConfig():
-  """Loads application configuration."""
-  f = open('config.json')
-  try:
-    return json.loads(f.read())
-  finally:
-    f.close()
+NAME = config.get('name')
 
+SECRET_KEY = config.get('secretKey')
 
-CONFIG = loadConfig()
-
-NAME = CONFIG['name']
-
-SECRET_KEY = CONFIG['secretKey']
-
-REQUIRE_AUTH = CONFIG.get('requireAuth', True)
+REQUIRE_AUTH = config.get('requireAuth', True)
 
 
 
@@ -98,7 +89,7 @@ def filterData(dataSet, key, value):
 
 def getErrors(filters, limit, offset):
   """Gets a list of errors, filtered by the given filters."""
-  errors = LoggedErrorV2.all().filter('active =', True)
+  errors = LoggedError.all().filter('active =', True)
   instanceFilters = {}
   for key, value in filters.items():
     if key == 'project':
@@ -121,7 +112,7 @@ def filterErrors(errors, instanceFilters):
 
   for error in errors:
     errorDict = {}
-    for name, prop in LoggedErrorV2.properties().items():
+    for name, prop in LoggedError.properties().items():
       errorDict[name] = prop.get_value_for_datastore(error)
     errorDict['parent_key'] = error.parent_key()
 
@@ -146,7 +137,7 @@ def filterErrors(errors, instanceFilters):
 def getInstances(filters, parent = None):
   """Gets a list of instances of the given parent error, filtered by the given filters."""
 
-  query = LoggedErrorInstanceV2.all()
+  query = LoggedErrorInstance.all()
   if parent:
     query = query.ancestor(parent)
 
@@ -178,7 +169,7 @@ def getAggregatedError(project, environment, server, backtraceText, errorHash, m
   if serialized:
     error = db.model_from_protobuf(serialized)
   else:
-    q = LoggedErrorV2.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
+    q = LoggedError.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
 
     for possibility in q:
       if backtrace.normalizeBacktrace(possibility.backtrace) == backtrace.normalizeBacktrace(backtraceText):
@@ -218,7 +209,7 @@ def putException(exception):
 
   error = getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp)
   if not error:
-    error = LoggedErrorV2(parent = getProject(project))
+    error = LoggedError(parent = getProject(project))
     error.backtrace = backtraceText
     exceptionType = exceptionType.replace('\n', ' ')
     if len(exceptionType) > 500:
@@ -234,7 +225,7 @@ def putException(exception):
     error.servers = [server]
     error.put()
 
-  instance = LoggedErrorInstanceV2(parent = error)
+  instance = LoggedErrorInstance(parent = error)
   instance.environment = environment
   instance.date = timestamp
   instance.message = message
@@ -323,7 +314,7 @@ class StatPage(webapp.RequestHandler):
       if not project:
         self.response.out.write(' '.join(['0' for _ in counts]))
     for minutes in self.request.get('minutes').split():
-      query = LoggedErrorInstanceV2.all()
+      query = LoggedErrorInstance.all()
       if project:
         query = query.ancestor(project)
       counts.append(query.filter('date >=', datetime.now() - timedelta(minutes = int(minutes))).count())
@@ -380,7 +371,7 @@ class ViewPage(AuthPage):
   def doAuthenticatedGet(self, user, *args):
     key, = args
     self.response.headers['Content-Type'] = 'text/html'
-    error = LoggedErrorV2.get(key)
+    error = LoggedError.get(key)
     filters = getFilters(self.request)
     context = {
       'title': '%s - %s' % (error.lastMessage, NAME),
@@ -400,7 +391,7 @@ class ResolvePage(AuthPage):
   def doAuthenticatedGet(self, _, *args):
     key, = args
     self.response.headers['Content-Type'] = 'text/plain'
-    error = LoggedErrorV2.get(key)
+    error = LoggedError.get(key)
     error.active = False
     error.put()
 
@@ -416,9 +407,9 @@ class ClearDatabasePage(AuthPage):
 
   def doAuthenticatedGet(self, _):
     if users.is_current_user_admin():
-      for error in LoggedErrorV2.all():
+      for error in LoggedError.all():
         error.delete()
-      for instance in LoggedErrorInstanceV2.all():
+      for instance in LoggedErrorInstance.all():
         instance.delete()
       self.response.out.write('Done')
     else:

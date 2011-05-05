@@ -5,7 +5,7 @@ mapreduce:
     handler: deleteAll.process
     params:
     - name: entity_kind
-      default: datamodel.LoggedErrorInstanceV2
+      default: datamodel.LoggedErrorInstanceV<version>
     - name: shard_count
       default: 32
     - name: processing_rate
@@ -18,7 +18,7 @@ mapreduce:
     handler: deleteAll.process
     params:
     - name: entity_kind
-      default: datamodel.LoggedErrorV2
+      default: datamodel.LoggedErrorV<version>
     - name: shard_count
       default: 32
     - name: processing_rate

@@ -64,6 +64,8 @@ For example, some obviously needed improvements include
 
 At this point, update config.json with the name and secret key.  Secret key should be any random string of characters.
 
+    python setup.py
+
     dev_appserver.py .
 
 #### Notes on deploying to App Engine
