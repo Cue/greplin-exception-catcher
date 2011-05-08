@@ -36,14 +36,15 @@ SETTINGS = {}
 
 def reportTooManyExceptions(deleted, example):
   """Report a special message to the GEC server if we see too many exception"""
-  newErr = {}
-  newErr["project"] = "GEC"
-  newErr["environment"] = example["environment"]
-  newErr["serverName"] = example["serverName"]
-  newErr["message"] = "Too many exceptions - GEC deleted %d" % deleted
-  newErr["timestamp"] = int(time.time())
+  newErr = {
+    "project": "GEC",
+    "environment": example["environment"],
+    "serverName": example["serverName"],
+    "message": "Too many exceptions - GEC deleted %d" % deleted,
+    "timestamp": int(time.time())
+  }
   sendException(newErr, "NoFilename")
-  
+
 
 def sendException(jsonData, filename):
   """Send an exception to the GEC server
@@ -106,11 +107,13 @@ def processFiles(files):
       try:
         with open(processingFilename) as f:
           result = json.load(f)
-      except ValueError:
+      except ValueError, ex:
         with open(processingFilename) as f:
           print >> sys.stderr, "Could not read %s:" % filename
+          print >> sys.stderr, '\n------------------\n'
           print >> sys.stderr, f.read()
           print >> sys.stderr, '\n------------------\n'
+          print >> sys.stderr, str(ex)
         os.remove(processingFilename)
         continue
       result['timestamp'] = os.stat(processingFilename)[stat.ST_CTIME]
