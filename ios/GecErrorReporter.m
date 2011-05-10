@@ -110,6 +110,7 @@ static NSMutableDictionary * uploadMap = nil;
     
     delegate = [[UploadDelegate alloc] initWithFilename:filename];
     [uploadMap setObject:delegate forKey:filename];
+    [delegate release];
     
     NSString *path = [@"report?key=" stringByAppendingString:secret];
     NSURL *url = [NSURL URLWithString:path relativeToURL:serverAddress];
@@ -166,7 +167,6 @@ static NSMutableDictionary * uploadMap = nil;
     
     [uploadMap removeObjectForKey:_filename];
     [connection release];
-    [self autorelease];
 }
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
@@ -174,7 +174,6 @@ static NSMutableDictionary * uploadMap = nil;
     
     [uploadMap removeObjectForKey:_filename];
     [connection release];
-    [self autorelease];
 }
 
 - (void)dealloc {
