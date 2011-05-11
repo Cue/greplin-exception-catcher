@@ -75,30 +75,28 @@ public final class GecAppender extends AppenderSkeleton {
 
   @Override
   protected void append(final LoggingEvent loggingEvent) {
-    if (loggingEvent.getThrowableInformation() == null) {
-      try {
-        UUID uniqueId = UUID.randomUUID();
-        writeFormattedException(
-            loggingEvent.getRenderedMessage(),
-            new FileWriter(
-                new File(outputDirectory, uniqueId.toString() + ".gec.json")));
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    } else {
-      Throwable throwable =
-          loggingEvent.getThrowableInformation().getThrowable();
+    UUID uniqueId = UUID.randomUUID();
+    try {
+      String filename = uniqueId.toString() + ".gec.json";
+      File output = new File(outputDirectory, filename + ".writing");
+      Writer writer = new FileWriter(output);
 
-      try {
-        UUID uniqueId = UUID.randomUUID();
+      if (loggingEvent.getThrowableInformation() == null) {
+        writeFormattedException(loggingEvent.getRenderedMessage(), writer);
+      } else {
+        Throwable throwable =
+            loggingEvent.getThrowableInformation().getThrowable();
         writeFormattedException(
-            loggingEvent.getRenderedMessage(),
-            throwable,
-            new FileWriter(
-                new File(outputDirectory, uniqueId.toString() + ".gec.json")));
-      } catch (IOException e) {
-        e.printStackTrace();
+            loggingEvent.getRenderedMessage(), throwable, writer);
       }
+
+      writer.close();
+
+      if (!output.renameTo(new File(filename))) {
+        System.err.println("Could not rename to " + filename);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 
