@@ -92,7 +92,7 @@ public final class GecAppender extends AppenderSkeleton {
 
       writer.close();
 
-      if (!output.renameTo(new File(filename))) {
+      if (!output.renameTo(new File(outputDirectory, filename))) {
         System.err.println("Could not rename to " + filename);
       }
     } catch (IOException e) {
