@@ -23,6 +23,8 @@
     NSString *secret;
     NSString *environment;
     NSString *project;
+    
+    NSInteger itemLimit;
 }
 
 + (GecErrorReporter *)sharedInstance;
@@ -35,5 +37,6 @@
 @property (nonatomic, retain) NSString* secret;
 @property (nonatomic, retain) NSString* environment;
 @property (nonatomic, retain) NSString* project;
+@property NSInteger itemLimit;
 
 @end

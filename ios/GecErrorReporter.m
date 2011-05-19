@@ -35,6 +35,7 @@ static NSMutableDictionary * uploadMap = nil;
 @synthesize secret;
 @synthesize environment;
 @synthesize project;
+@synthesize itemLimit;
 
 + (GecErrorReporter *)sharedInstance {
     if (sharedInstance == nil) {
@@ -122,6 +123,33 @@ static NSMutableDictionary * uploadMap = nil;
     [[NSURLConnection alloc] initWithRequest:request delegate:delegate];
 }
 
+- (void)pruneError:(NSString*)filename {
+    
+    //Don't delete a file from under the uploader
+    if (nil!=[uploadMap objectForKey:filename]) {
+        return;
+    }
+    
+    NSLog(@"Giving up on error file %@. Deleting", filename);
+    [[NSFileManager defaultManager] removeItemAtPath:filename error:NULL];    
+}
+
+
+// We can either attempt to upload the error, or if enough have piled up due to failure, 
+// just start deleting according to itemLimit. 
+
+// Since sorting by date in NSFileManager is kind of a pain, we're just doing it in unmodified order. 
+// If there's enough demand to do FIFO, it could be added.
+
+- (void)handleErrorFile:(NSString*)filename atIndex:(NSInteger)itemCount {    
+    NSString * fullname = [[GecErrorReporter crashFileDir] stringByAppendingPathComponent:filename];    
+    if (itemLimit && itemCount > itemLimit) {
+        [self pruneError:fullname];
+    } else {
+        [self uploadError:fullname];         
+    }
+}
+
 - (void)syncErrors {
     NSString* dir = [GecErrorReporter crashFileDir];
     NSError* error = nil;
@@ -129,10 +157,10 @@ static NSMutableDictionary * uploadMap = nil;
     NSArray* files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dir
                                                                          error:&error];
     
+    NSInteger itemCount = 0;
     for (NSString * filename in files) {
         if ([filename hasSuffix:@".gec"]) {
-            NSString * fullname = [[GecErrorReporter crashFileDir] stringByAppendingPathComponent:filename];
-            [self uploadError:fullname];            
+            [self handleErrorFile:filename atIndex:itemCount++];
         }
     }
 }
@@ -158,7 +186,7 @@ static NSMutableDictionary * uploadMap = nil;
 }
 
 - (void)deleteCrashFile {
-    [[NSFileManager defaultManager] removeItemAtPath:_filename error:nil];   
+    [[NSFileManager defaultManager] removeItemAtPath:_filename error:NULL];   
 }
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
