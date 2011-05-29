@@ -3,7 +3,7 @@
   <body>
     {% include "common/user.html" %}
 
-    <h1>Exception: <code>{{ error.lastMessage|escape }}</code></h1>
+    <h1>{{ error.errorLevel|escape }}: <code>{{ error.lastMessage|escape }}</code></h1>
 
     <p><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></p>
 

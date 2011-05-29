@@ -9,6 +9,7 @@
         <thead>
           <tr>
             <th>Project</th>
+            <th>Level</th>
             <th>Error type</th>
             <th>Error message</th>
             <th>Count</th>
@@ -20,6 +21,7 @@
           {% for error in errors %}
             <tr>
               <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
+              <td class="error-level"><a href="#" class="errorLevel">{{ error.errorLevel|escape }}</a></td>
               <td class="error-type">{{ error.type|escape }}</td>
               <td class="error-message">
                 <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
@@ -47,6 +49,8 @@
         <thead>
           <tr>
             <th>Project</th>
+            <th>Level</th>
+            <th>Error type</th>
             <th>Error message</th>
             <th>Environment</th>
             <th>Server</th>
@@ -57,6 +61,8 @@
           {% for instance in instances %}
             <tr>
               <td class="project"><a href="#" class="project">{{ instance.parent_key.parent.name|escape }}</a></td>
+              <td class="error-level"><a href="#" class="errorLevel">{{ instance.errorLevel|escape }}</a></td>
+              <td class="error-type">{{ instance.type|escape }}</td>
               <td class="error-message">
                 <a class="message" href="/view/{{ instance.parent_key }}">{{ instance.message|escape|default:"none" }}</a>
               </td>

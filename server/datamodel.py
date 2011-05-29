@@ -20,19 +20,6 @@ import config
 
 
 
-class Level(object):
-  """Enumeration of error levels."""
-
-  DEBUG = 0
-
-  INFO = 10
-
-  WARNING = 20
-
-  ERROR = 30
-
-
-
 class Queue(db.Model):
   """Model for a task in the queue."""
 
@@ -58,7 +45,7 @@ class LoggedError(db.Model):
 
   count = db.IntegerProperty()
 
-  level = db.IntegerProperty(default = Level.ERROR)
+  errorLevel = db.StringProperty(default = 'error')
 
   firstOccurrence = db.DateTimeProperty()
 
@@ -82,6 +69,10 @@ class LoggedErrorInstance(db.Model):
   """Model for each occurrence of an error."""
 
   environment = db.StringProperty()
+
+  type = db.StringProperty()
+
+  errorLevel = db.StringProperty(default = 'error')
 
   date = db.DateTimeProperty()
 

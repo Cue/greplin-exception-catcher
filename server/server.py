@@ -77,7 +77,7 @@ def getFilters(request):
   """Gets the filters applied to the given request."""
   filters = {}
   for key, value in request.params.items():
-    if key in INSTANCE_FILTERS or key == 'project':
+    if key in INSTANCE_FILTERS or key in ('project', 'errorLevel'):
       filters[key] = value
   return filters
 
@@ -94,12 +94,14 @@ def getErrors(filters, limit, offset):
   """Gets a list of errors, filtered by the given filters."""
   for key in filters:
     if key in INSTANCE_FILTERS:
-      return None, getInstances(filters, limit, offset)
+      return None, getInstances(filters, limit=limit, offset=offset)
 
   errors = LoggedError.all().filter('active =', True)
   for key, value in filters.items():
     if key == 'project':
       errors = errors.ancestor(getProject(value))
+    else:
+      errors = errors.filter(key, value)
   errors = errors.order('-lastOccurrence')
 
   return errors.fetch(limit, offset), None
@@ -177,19 +179,24 @@ def putException(exception):
   exceptionType = exception['type']
   logMessage = exception.get('logMessage')
   context = exception.get('context')
+  errorLevel = exception.get('errorLevel')
 
   errorHash = generateHash(exceptionType, backtraceText)
 
   error = getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp)
+
+  exceptionType = exceptionType.replace('\n', ' ')
+  if len(exceptionType) > 500:
+    exceptionType = exceptionType[:500]
+  exceptionType = exceptionType.replace('\n', ' ')
+
   if not error:
     error = LoggedError(parent = getProject(project))
     error.backtrace = backtraceText
-    exceptionType = exceptionType.replace('\n', ' ')
-    if len(exceptionType) > 500:
-      exceptionType = exceptionType[:500]
-    error.type = exceptionType.replace('\n', ' ')
+    error.type = exceptionType
     error.hash = errorHash
     error.active = True
+    error.errorLevel = errorLevel
     error.count = 1
     error.firstOccurrence = timestamp
     error.lastOccurrence = timestamp
@@ -200,6 +207,8 @@ def putException(exception):
 
   instance = LoggedErrorInstance(parent = error)
   instance.environment = environment
+  instance.type = exceptionType
+  instance.errorLevel = errorLevel
   instance.date = timestamp
   instance.message = message
   instance.server = server
@@ -402,12 +411,14 @@ class ErrorPage(webapp.RequestHandler):
     """Handles page get for the error page."""
     for _ in range(10):
       error = random.choice(range(4))
+      errorLevel = 'error'
       project = 'frontend'
       try:
         if error == 0:
-          x = 10 / 0
           project = 'backend'
+          x = 10 / 0
         elif error == 1:
+          errorLevel = 'warning'
           json.loads('{"abc", [1, 2')
         elif error == 2:
           x = {}
@@ -426,6 +437,7 @@ class ErrorPage(webapp.RequestHandler):
           'serverName':'%s %s %d' % (env, project, random.choice(range(3))),
           'type': excInfo[0].__module__ + '.' + excInfo[0].__name__,
           'environment': env,
+          'errorLevel': errorLevel,
           'message': str(excInfo[1]),
           'logMessage': 'Log message goes here',
           'backtrace': stack,

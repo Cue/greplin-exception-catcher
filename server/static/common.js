@@ -48,6 +48,12 @@ $(document).ready(function() {
     updateRequest();
     return false;
   });
+  $('a.errorLevel').click(function() {
+    urlParams.errorLevel = this.innerHTML;
+    delete urlParams.page;
+    updateRequest();
+    return false;
+  });
   $('a.project').click(function() {
     urlParams.project = this.innerHTML;
     delete urlParams.page;
