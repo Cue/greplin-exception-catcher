@@ -4,42 +4,74 @@
     {% include "common/user.html" %}
     <h1>{{ title|escape }}</h1>
     {% include "common/filters.html" %}
-    <table>
-      <thead>
-        <tr>
-          <th>Project</th>
-          <th>Error type</th>
-          <th>Error message</th>
-          <th>Count</th>
-          <th>When</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for error in errors %}
+    {% if errors %}
+      <table>
+        <thead>
           <tr>
-            <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
-            <td class="error-type">{{ error.type|escape }}</td>
-            <td class="error-message">
-              <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
-              <p class="environments">
-                {% for env in error.environments %}
-                  <a href="#" class="environment">{{ env|escape }}</a>{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              </p>
-              <p class="servers">
-                {% for server in error.servers %}
-                  <a href="#" class="server">{{ server|escape }}</a>{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              </p>
-            </td>
-            <td class="error-count">{{ error.count }}</td>
-            <td class="when"><span class="timeago" title="{{ error.lastOccurrence.isoformat }}Z">{{ error.lastOccurrence }}</span></td>
-            <td class="error-action"><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></td>
+            <th>Project</th>
+            <th>Error type</th>
+            <th>Error message</th>
+            <th>Count</th>
+            <th>When</th>
+            <th>Actions</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for error in errors %}
+            <tr>
+              <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
+              <td class="error-type">{{ error.type|escape }}</td>
+              <td class="error-message">
+                <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
+                <p class="environments">
+                  {% for env in error.environments %}
+                    <a href="#" class="environment">{{ env|escape }}</a>{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                </p>
+                <p class="servers">
+                  {% for server in error.servers %}
+                    <a href="#" class="server">{{ server|escape }}</a>{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                </p>
+              </td>
+              <td class="error-count">{{ error.count }}</td>
+              <td class="when"><span class="timeago" title="{{ error.lastOccurrence.isoformat }}Z">{{ error.lastOccurrence }}</span></td>
+              <td class="error-action"><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+    {% if instances %}
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Error message</th>
+            <th>Environment</th>
+            <th>Server</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for instance in instances %}
+            <tr>
+              <td class="project"><a href="#" class="project">{{ instance.parent_key.parent.name|escape }}</a></td>
+              <td class="error-message">
+                <a class="message" href="/view/{{ instance.parent_key }}">{{ instance.message|escape|default:"none" }}</a>
+              </td>
+              <td class="environments">
+                <a href="#" class="environment">{{ instance.environment|escape }}</a>
+              </td>
+              <td class="servers">
+                <a href="#" class="server">{{ instance.server|escape }}</a>
+              </td>
+              <td class="when"><span class="timeago" title="{{ instance.date.isoformat }}Z">{{ instance.date }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
     <p class="footer">
       {% if hasMore %}
         <a class="next" href="#">Next page</a>

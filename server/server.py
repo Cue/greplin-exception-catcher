@@ -27,10 +27,9 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 import backtrace
 import config
 
-import collections
 from datetime import datetime, timedelta
 import hashlib
-import itertools
+
 try:
   from django.utils import simplejson as json
 except ImportError:
@@ -93,52 +92,20 @@ def filterData(dataSet, key, value):
 
 def getErrors(filters, limit, offset):
   """Gets a list of errors, filtered by the given filters."""
+  for key in filters:
+    if key in INSTANCE_FILTERS:
+      return None, getInstances(filters, limit, offset)
+
   errors = LoggedError.all().filter('active =', True)
-  instanceFilters = {}
   for key, value in filters.items():
     if key == 'project':
       errors = errors.ancestor(getProject(value))
-    elif key in INSTANCE_FILTERS:
-      instanceFilters[key] = value
   errors = errors.order('-lastOccurrence')
 
-  if instanceFilters:
-    return list(itertools.islice(filterErrors(errors, instanceFilters), offset, offset + limit))
-  else:
-    return errors.fetch(limit, offset)
+  return errors.fetch(limit, offset), None
 
 
-def filterErrors(errors, instanceFilters):
-  """Filters a set of errors by the given instance filters."""
-  instanceMap = collections.defaultdict(list)
-  for instance in getInstances(instanceFilters):
-    instanceMap[instance.parent_key()].append(instance)
-
-  for error in errors:
-    errorDict = {}
-    for name, prop in LoggedError.properties().items():
-      errorDict[name] = prop.get_value_for_datastore(error)
-    errorDict['parent_key'] = error.parent_key()
-
-    instances = instanceMap[error.key()]
-    if instances:
-      errorDict['key'] = error.key()
-      errorDict['count'] = len(instances)
-      errorDict['lastOccurrence'] = sorted(instances, key = lambda x: x.date, reverse = True)[0].date
-
-      environments = set()
-      servers = set()
-      for instance in instances:
-        environments.add(instance.environment)
-        servers.add(instance.server)
-
-      errorDict['environments'] = list(environments)
-      errorDict['servers'] = list(servers)
-
-      yield errorDict
-
-
-def getInstances(filters, parent = None):
+def getInstances(filters, parent = None, limit = None, offset = None):
   """Gets a list of instances of the given parent error, filtered by the given filters."""
 
   query = LoggedErrorInstance.all()
@@ -149,8 +116,10 @@ def getInstances(filters, parent = None):
     for key, value in filters.items():
       if key in INSTANCE_FILTERS:
         query = filterData(query, key, value)
+      elif key == 'project':
+        query = query.ancestor(getProject(value))
 
-  return query.order('-date')
+  return query.order('-date').fetch(limit or 51, offset or 0)
 
 
 def getProject(name):
@@ -351,10 +320,14 @@ class ListPage(AuthPage):
     filters = getFilters(self.request)
 
     page = int(self.request.get('page', 0))
-    errors = getErrors(filters, limit = 51, offset = page * 50)
+    errors, instances = getErrors(filters, limit = 51, offset = page * 50)
 
-    hasMore = len(errors) == 51
-    errors = errors[:50]
+    if errors:
+      hasMore = len(errors) == 51
+      errors = errors[:50]
+    else:
+      hasMore = len(instances) == 51
+      instances = instances[:50]
 
     context = {
       'title': NAME,
@@ -362,6 +335,7 @@ class ListPage(AuthPage):
       'user': user,
       'filters': filters.items(),
       'errors': errors,
+      'instances': instances,
       'hasMore': hasMore,
       'nextPage': page + 1
     }
@@ -445,7 +419,7 @@ class ErrorPage(webapp.RequestHandler):
       except (KeyError, ZeroDivisionError, ValueError):
         excInfo = sys.exc_info()
         stack = traceback.format_exc()
-        env = random.choice([''])
+        env = random.choice(['dev', 'prod'])
         exception = {
           'timestamp': time.time(),
           'project': project,
