@@ -36,6 +36,10 @@ try:
 except ImportError:
   import json
 import os
+import random
+import sys
+import time
+import traceback
 
 from datamodel import  Queue, Project, LoggedError, LoggedErrorInstance
 
@@ -417,25 +421,67 @@ class ClearDatabasePage(AuthPage):
 
 
 
+class ErrorPage(webapp.RequestHandler):
+  """Page that generates demonstration errors."""
+
+  def get(self):
+    """Handles page get for the error page."""
+    for _ in range(10):
+      error = random.choice(range(4))
+      project = 'frontend'
+      try:
+        if error == 0:
+          x = 10 / 0
+          project = 'backend'
+        elif error == 1:
+          json.loads('{"abc", [1, 2')
+        elif error == 2:
+          x = {}
+          x = x['y']
+        elif error == 3:
+          x = {}
+          x = x['z']
+
+      except (KeyError, ZeroDivisionError, ValueError):
+        excInfo = sys.exc_info()
+        stack = traceback.format_exc()
+        env = random.choice([''])
+        exception = {
+          'timestamp': time.time(),
+          'project': project,
+          'serverName':'%s %s %d' % (env, project, random.choice(range(3))),
+          'type': excInfo[0].__module__ + '.' + excInfo[0].__name__,
+          'environment': env,
+          'message': str(excInfo[1]),
+          'logMessage': 'Log message goes here',
+          'backtrace': stack,
+          'context':{'userId':random.choice(range(20))}
+        }
+        putException(exception)
+
+    self.response.out.write('Done!')
+
+
 ####### Application. #######
 
 def main():
   """Runs the server."""
-  application = webapp.WSGIApplication(
-      [
-        ('/', ListPage),
+  endpoints = [
+    ('/', ListPage),
 
-        ('/clear', ClearDatabasePage),
+    ('/clear', ClearDatabasePage),
 
-        ('/report', ReportPage),
-        ('/reportWorker', ReportWorker),
+    ('/report', ReportPage),
+    ('/reportWorker', ReportWorker),
 
-        ('/view/(.*)', ViewPage),
-        ('/resolve/(.*)', ResolvePage),
+    ('/view/(.*)', ViewPage),
+    ('/resolve/(.*)', ResolvePage),
 
-        ('/stats', StatPage),
-      ],
-      debug=True)
+    ('/stats', StatPage),
+  ]
+  if config.get('demo'):
+    endpoints.append(('/error', ErrorPage))
+  application = webapp.WSGIApplication(endpoints, debug=True)
 
   run_wsgi_app(application)
 

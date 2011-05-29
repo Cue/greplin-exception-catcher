@@ -2,5 +2,6 @@
   "id": "greplin-exception-catcher",
   "name": "Exception Catcher",
   "secretKey": "insert_your_secret_key_here",
-  "requireAuth": true
+  "requireAuth": true,
+  "demo": false
 }
