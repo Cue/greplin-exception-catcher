@@ -207,7 +207,7 @@ def _lockError(key):
 
 def _unlockError(key):
   """Locks the given error."""
-  return memcache.delete(key, True, namespace = 'errorLocks')
+  return memcache.delete(key, namespace = 'errorLocks')
 
 
 
