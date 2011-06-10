@@ -237,7 +237,7 @@ class AggregationWorker(webapp.RequestHandler):
       if not _lockError(errorKey):
         errors.append(errorKey)
         retryTasks.extend(tasksByError[errorKey])
-        break
+        continue
 
       try:
         for instanceKey in instanceKeys:
