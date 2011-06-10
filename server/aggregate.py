@@ -14,6 +14,10 @@
 
 """AppEngine server for aggregating exceptions."""
 
+# pylint: disable=E0611
+from google.appengine.dist import use_library
+use_library('django', '1.2')
+
 from datamodel import    LoggedErrorInstance, AggregatedStats
 from datetime import datetime, timedelta
 

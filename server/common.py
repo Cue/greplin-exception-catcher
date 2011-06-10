@@ -24,8 +24,10 @@ from datamodel import Project
 
 def getProject(name):
   """Gets the project with the given name."""
-  serialized = memcache.get('project:%s' % name)
+  serialized = memcache.get(name, namespace = 'projects')
   if serialized:
     return db.model_from_protobuf(serialized)
   else:
-    return Project.get_or_insert(name)
+    result = Project.get_or_insert(name)
+    memcache.set(name, db.model_to_protobuf(result), namespace = 'projects')
+    return result

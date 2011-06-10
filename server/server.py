@@ -19,7 +19,7 @@ from google.appengine.dist import use_library
 use_library('django', '1.2')
 
 # pylint: disable=E0611
-from google.appengine.api import memcache, taskqueue, users
+from google.appengine.api import users
 # pylint: disable=E0611
 from google.appengine.ext import db, webapp
 # pylint: disable=E0611
@@ -27,12 +27,10 @@ from google.appengine.ext.webapp import template
 # pylint: disable=E0611
 from google.appengine.ext.webapp.util import run_wsgi_app
 
-import backtrace
 import config
+import queue
 
 from datetime import datetime, timedelta
-import hashlib
-
 try:
   from django.utils import simplejson as json
 except ImportError:
@@ -45,7 +43,7 @@ import time
 import traceback
 
 from common import getProject
-from datamodel import  Queue, LoggedError, LoggedErrorInstance, AggregatedStats
+from datamodel import LoggedError, LoggedErrorInstance, AggregatedStats
 
 
 ####### Parse the configuration. #######
@@ -63,14 +61,6 @@ REQUIRE_AUTH = config.get('requireAuth', True)
 def getTemplatePath(name):
   """Gets a path to the named template."""
   return os.path.join(os.path.dirname(__file__), 'templates', name)
-
-
-def generateHash(exceptionType, backtraceText):
-  """Generates a hash for the given exception type and backtrace."""
-  hasher = hashlib.md5()
-  hasher.update(exceptionType.encode('utf-8'))
-  hasher.update(backtrace.normalizeBacktrace(backtraceText.encode('utf-8')))
-  return hasher.hexdigest()
 
 
 INSTANCE_FILTERS = ('environment', 'server', 'affectedUser')
@@ -129,94 +119,6 @@ def getInstances(filters, parent = None, limit = None, offset = None):
   return query.order('-date').fetch(limit or 51, offset or 0)
 
 
-def getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp):
-  """Gets (and updates) the error matching the given report, or None if no matching error is found."""
-  error = None
-
-  project = getProject(project)
-
-  key = '%s|%s' % (project, errorHash)
-  serialized = memcache.get(key)
-  if serialized:
-    error = db.model_from_protobuf(serialized)
-  else:
-    q = LoggedError.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
-
-    for possibility in q:
-      if backtrace.normalizeBacktrace(possibility.backtrace) == backtrace.normalizeBacktrace(backtraceText):
-        error = possibility
-        break
-
-  if error:
-    error.count += 1
-    error.firstOccurrence = min(error.firstOccurrence, timestamp)
-    if timestamp > error.lastOccurrence:
-      error.lastOccurrence = timestamp
-      error.backtrace = backtraceText
-      error.lastMessage = message[:300]
-
-    if environment not in error.environments:
-      error.environments.append(environment)
-    if server not in error.servers:
-      error.servers.append(server)
-    error.put()
-    memcache.set(key, db.model_to_protobuf(error))
-    return error
-
-
-def putException(exception):
-  """Put an exception in the data store."""
-  backtraceText = exception['backtrace']
-  environment = exception['environment']
-  message = exception['message'] or ''
-  project = exception['project']
-  server = exception['serverName']
-  timestamp = datetime.fromtimestamp(exception['timestamp'])
-  exceptionType = exception['type']
-  logMessage = exception.get('logMessage')
-  context = exception.get('context')
-  errorLevel = exception.get('errorLevel')
-
-  errorHash = generateHash(exceptionType, backtraceText)
-
-  error = getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp)
-
-  exceptionType = exceptionType.replace('\n', ' ')
-  if len(exceptionType) > 500:
-    exceptionType = exceptionType[:500]
-  exceptionType = exceptionType.replace('\n', ' ')
-
-  if not error:
-    error = LoggedError(parent = getProject(project))
-    error.backtrace = backtraceText
-    error.type = exceptionType
-    error.hash = errorHash
-    error.active = True
-    error.errorLevel = errorLevel
-    error.count = 1
-    error.firstOccurrence = timestamp
-    error.lastOccurrence = timestamp
-    error.lastMessage = message[:300]
-    error.environments = [str(environment)]
-    error.servers = [server]
-    error.put()
-
-  instance = LoggedErrorInstance(parent = error)
-  instance.environment = environment
-  instance.type = exceptionType
-  instance.errorLevel = errorLevel
-  instance.date = timestamp
-  instance.message = message
-  instance.server = server
-  instance.logMessage = logMessage
-  if context:
-    instance.context = json.dumps(context)
-    if 'userId' in context:
-      instance.affectedUser = int(context['userId'])
-
-  instance.put()
-
-
 ####### Pages #######
 
 class AuthPage(webapp.RequestHandler):
@@ -268,9 +170,7 @@ class ReportPage(webapp.RequestHandler):
       return
 
     # Add the task to the instances queue.
-    task = Queue(payload = self.request.body)
-    task.put()
-    taskqueue.add(queue_name='instances', url='/reportWorker', params={'key': task.key()})
+    queue.enqueueException(self.request.body)
 
 
 
@@ -327,21 +227,6 @@ class AggregateViewPage(webapp.RequestHandler):
       'total': len(data)
     }
     self.response.out.write(template.render(getTemplatePath('aggregation.html'), context))
-
-
-
-class ReportWorker(webapp.RequestHandler):
-  """Worker handler for reporting a new exception."""
-
-  def post(self):
-    """Handles a new error report via POST."""
-    task = Queue.get(self.request.get('key'))
-    if not task:
-      return
-
-    exception = json.loads(task.payload)
-    putException(exception)
-    task.delete()
 
 
 
@@ -407,9 +292,6 @@ class ResolvePage(AuthPage):
     error.active = False
     error.put()
 
-    key = '%s|%s' % (error.parent_key().name(), error.hash)
-    memcache.delete(key)
-
     self.response.out.write('ok')
 
 
@@ -468,7 +350,7 @@ class ErrorPage(webapp.RequestHandler):
           'backtrace': stack,
           'context':{'userId':random.choice(range(20))}
         }
-        putException(exception)
+        queue.queueException(json.dumps(exception))
 
     self.response.out.write('Done!')
 
@@ -483,14 +365,13 @@ def main():
     ('/clear', ClearDatabasePage),
 
     ('/report', ReportPage),
-    ('/reportWorker', ReportWorker),
 
     ('/view/(.*)', ViewPage),
     ('/resolve/(.*)', ResolvePage),
 
     ('/stats', StatPage),
     ('/review/(.*)', AggregateViewPage),
-  ]
+  ] + queue.getEndpoints()
   if config.get('demo'):
     endpoints.append(('/error', ErrorPage))
   application = webapp.WSGIApplication(endpoints, debug=True)
