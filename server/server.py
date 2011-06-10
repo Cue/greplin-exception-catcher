@@ -331,7 +331,7 @@ class ListPage(AuthPage):
     page = int(self.request.get('page', 0))
     errors, instances = getErrors(filters, limit = 51, offset = page * 50)
 
-    if errors:
+    if errors is not None:
       hasMore = len(errors) == 51
       errors = errors[:50]
     else:
