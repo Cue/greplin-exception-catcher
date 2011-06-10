@@ -122,7 +122,7 @@ def queueAggregation(error, instance):
 def _putInstance(exception):
   """Put an exception in the data store."""
   backtraceText = exception['backtrace']
-  environment = exception['environment']
+  environment = exception.get('environment', 'Unknown')
   message = exception['message'] or ''
   project = exception['project']
   server = exception['serverName']
