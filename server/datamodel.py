@@ -91,3 +91,12 @@ class LoggedErrorInstance(db.Model):
   def kind(cls):
     """Returns the datastore name for this model class."""
     return 'LoggedErrorInstanceV%d' % (config.get('datastoreVersion', 2))
+
+
+
+class AggregatedStats(db.Model):
+  """Stores aggregated stats."""
+
+  date = db.DateTimeProperty()
+
+  json = db.TextProperty()

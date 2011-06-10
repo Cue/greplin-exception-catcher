@@ -1,0 +1,52 @@
+<html>
+  {% include "common/head.html" %}
+  <body>
+    {% include "common/user.html" %}
+    <h1>{{ title|escape }}</h1>
+    {% include "common/filters.html" %}
+    {% if errors %}
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Level</th>
+            <th>Error type</th>
+            <th>Error message</th>
+            <th>Count</th>
+            <th>Environments</th>
+            <th>Servers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for error, stats in errors %}
+            <tr>
+              <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
+              <td class="error-level"><a href="#" class="errorLevel">{{ error.errorLevel|escape }}</a></td>
+              <td class="error-type">{{ error.type|escape }}</td>
+              <td class="error-message">
+                <a class="message" href="/view/{{ error.key }}">{{ error.lastMessage|escape|default:"none" }}</a>
+              </td>
+              <td class="error-count">{{ stats.count }}</td>
+              <td>
+                <p class="environments">
+                  {% for env, count in stats.environments %}
+                    <a href="#" class="environment">{{ env|escape }} ({{count}})</a>{% if not forloop.last %}<br>{% endif %}
+                  {% endfor %}
+                </p>
+              </td>
+              <td>
+                <p class="servers">
+                  {% for server, count in stats.servers %}
+                    <a href="#" class="server">{{ server|escape }} ({{count}})</a>{% if not forloop.last %}<br>{% endif %}
+                  {% endfor %}
+                </p>
+              </td>
+              <td class="error-action"><a class="resolve" href="/resolve/{{ error.key }}">resolve</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </body>
+</html>

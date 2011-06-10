@@ -14,6 +14,9 @@
 
 """AppEngine server for collecting exceptions."""
 
+# pylint: disable=E0611
+from google.appengine.dist import use_library
+use_library('django', '1.2')
 
 # pylint: disable=E0611
 from google.appengine.api import memcache, taskqueue, users
@@ -34,13 +37,14 @@ try:
   from django.utils import simplejson as json
 except ImportError:
   import json
+import logging
 import os
 import random
 import sys
 import time
 import traceback
 
-from datamodel import  Queue, Project, LoggedError, LoggedErrorInstance
+from datamodel import  Queue, Project, LoggedError, LoggedErrorInstance, AggregatedStats
 
 
 ####### Parse the configuration. #######
@@ -305,6 +309,31 @@ class StatPage(webapp.RequestHandler):
 
 
 
+class AggregateViewPage(webapp.RequestHandler):
+  """Page handler for collecting error instance stats."""
+
+  def get(self, viewLength):
+    """Handles a new error report via POST."""
+    data = AggregatedStats.all().order('-date').get()
+    data = json.loads(data.json)[viewLength][:25]
+
+    for _, row in data:
+      logging.info(row)
+      row['servers'] = sorted(row['servers'].items(), key = lambda x: x[1], reverse=True)
+      row['environments'] = sorted(row['environments'].items(), key = lambda x: x[1], reverse=True)
+
+    keys, values = zip(*data)
+    errors = LoggedError.get([db.Key(key) for key in keys])
+
+    context = {
+      'title': 'Top 25 exceptions this %s' % viewLength,
+      'errors': zip(errors, values),
+      'total': len(data)
+    }
+    self.response.out.write(template.render(getTemplatePath('aggregation.html'), context))
+
+
+
 class ReportWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
 
@@ -464,6 +493,7 @@ def main():
     ('/resolve/(.*)', ResolvePage),
 
     ('/stats', StatPage),
+    ('/review/(.*)', AggregateViewPage),
   ]
   if config.get('demo'):
     endpoints.append(('/error', ErrorPage))

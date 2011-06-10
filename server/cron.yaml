@@ -1,0 +1,4 @@
+cron:
+- description: twice daily stats aggregation
+  url: /tasks/aggregate
+  schedule: every 12 hours synchronized
