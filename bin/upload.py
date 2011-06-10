@@ -123,6 +123,12 @@ def processFiles(files):
         os.remove(processingFilename)
 
 
+def writePid(lockDir):
+  """Writes the current pid to the lock directory."""
+  with open(os.path.join(lockDir, 'pid'), 'w') as f:
+    f.write(str(os.getpid()))
+
+
 def main():
   """Runs the gec sender."""
 
@@ -140,14 +146,25 @@ LOCKNAME defaults to 'upload-lock'"""
   lockName = sys.argv[4] if len(sys.argv) == 5 else 'upload-lock'
   lock = os.path.join(path, lockName)
 
-
   # mkdir will fail if the directory already exists, so we can use it as a file lock
   try:
     os.mkdir(lock)
+    writePid(lock)
   except OSError:
-    print "Lock directory '%s' already exists." % lock
-    print "Another upload.py may be running. If not, delete the directory and try again."
-    exit(-1)
+    blocked = True
+    try:
+      with open(os.path.join(lock, 'pid')) as f:
+        pid = int(f.read().strip())
+      os.kill(pid, 0)
+    except (IOError, ValueError, OSError):
+      # No pid file, bad pid file, or pid doesn't exit.
+      writePid(lock)
+      blocked = False
+
+    if blocked:
+      print "Lock directory '%s' already exists." % lock
+      print "Another upload.py appears to be running. Consider killing it and trying again."
+      exit(-1)
 
   files = [os.path.join(path, f) for f in os.listdir(path)
            if f.endswith(".gec.json") and not '_____' in f]
@@ -155,6 +172,7 @@ LOCKNAME defaults to 'upload-lock'"""
   try:
     processFiles(files)
   finally:
+    os.unlink(os.path.join(lock, 'pid'))
     os.rmdir(lock)
 
 
