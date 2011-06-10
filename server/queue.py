@@ -218,6 +218,7 @@ class AggregationWorker(webapp.RequestHandler):
     """Handles a new error report via POST."""
     q = taskqueue.Queue('aggregation')
     tasks = q.lease_tasks(600, 1000) # Get 1000 tasks and lease for 10 minutes
+    logging.info('Leased %d tasks', len(tasks))
 
     byError = collections.defaultdict(list)
     instanceKeys = []
