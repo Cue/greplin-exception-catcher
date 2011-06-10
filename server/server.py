@@ -44,7 +44,8 @@ import sys
 import time
 import traceback
 
-from datamodel import  Queue, Project, LoggedError, LoggedErrorInstance, AggregatedStats
+from common import getProject
+from datamodel import  Queue, LoggedError, LoggedErrorInstance, AggregatedStats
 
 
 ####### Parse the configuration. #######
@@ -126,15 +127,6 @@ def getInstances(filters, parent = None, limit = None, offset = None):
         query = query.ancestor(getProject(value))
 
   return query.order('-date').fetch(limit or 51, offset or 0)
-
-
-def getProject(name):
-  """Gets the project with the given name."""
-  serialized = memcache.get('project:%s' % name)
-  if serialized:
-    return db.model_from_protobuf(serialized)
-  else:
-    return Project.get_or_insert(name)
 
 
 def getAggregatedError(project, environment, server, backtraceText, errorHash, message, timestamp):
