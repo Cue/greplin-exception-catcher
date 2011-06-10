@@ -170,7 +170,7 @@ class ReportPage(webapp.RequestHandler):
       return
 
     # Add the task to the instances queue.
-    queue.enqueueException(self.request.body)
+    queue.queueException(self.request.body)
 
 
 
