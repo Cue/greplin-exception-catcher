@@ -1,4 +1,4 @@
 cron:
-- description: twice daily stats aggregation
+- description: four times daily stats aggregation
   url: /tasks/aggregate
-  schedule: every 12 hours synchronized
+  schedule: every 6 hours synchronized
