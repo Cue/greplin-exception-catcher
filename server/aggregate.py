@@ -17,13 +17,14 @@
 from datamodel import    LoggedErrorInstance, AggregatedStats
 from datetime import datetime, timedelta
 
-import collections
+from google.appengine.api.datastore_errors import Timeout
 
+import collections
 try:
   from django.utils import simplejson as json
 except ImportError:
   import json
-
+import logging
 
 
 def entry():
@@ -43,9 +44,24 @@ def aggregate(aggregation, instance):
   item['environments'][instance.environment] += 1
 
 
+def retryingIter(queryGenerator):
+  """Iterator with retry logic."""
+  lastCursor = None
+  for i in range(100):
+    query = queryGenerator()
+    if lastCursor:
+      query.with_cursor(lastCursor)
+    try:
+      for item in query:
+        lastCursor = query.cursor()
+        yield item
+    except Timeout:
+      logging.info('Attempt #%d failed', i)
+
 
 def main():
   """Runs the aggregation."""
+  logging.info('running the cron')
   now = datetime.now()
   oneDayAgo = now - timedelta(days = 1)
   oneWeekAgo = now - timedelta(days = 7)
@@ -53,20 +69,33 @@ def main():
   result = {}
   aggregation = collections.defaultdict(entry)
 
-  query = LoggedErrorInstance.all().filter('date >=', oneDayAgo)
-  for instance in query:
+  count = 0
+  query = lambda: LoggedErrorInstance.all().filter('date >=', oneDayAgo)
+  for instance in retryingIter(query):
     aggregate(aggregation, instance)
+    count += 1
+    if not count % 500:
+      logging.info('Finished %d items', count)
   result['day'] = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
 
-  query = LoggedErrorInstance.all().filter('date <', oneDayAgo).filter('date >=', oneWeekAgo)
-  for instance in query:
+  logging.info('Finished first day of data')
+
+  query = lambda: LoggedErrorInstance.all().filter('date <', oneDayAgo).filter('date >=', oneWeekAgo)
+  for instance in retryingIter(query):
     aggregate(aggregation, instance)
+    count += 1
+    if not count % 500:
+      logging.info('Finished %d items', count)
   result['week'] = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
+
+  logging.info('Finished first week of data')
 
   stat = AggregatedStats()
   stat.date = now
   stat.json = json.dumps(result)
   stat.put()
+
+  logging.info('Put aggregate')
 
 
 if __name__ == '__main__':
