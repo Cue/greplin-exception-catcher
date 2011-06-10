@@ -65,7 +65,8 @@ a.message {
 }
 
 .environments a, .servers a {
-  color: #555
+  color: #555;
+  white-space: nowrap;
 }
 
 #filters {
