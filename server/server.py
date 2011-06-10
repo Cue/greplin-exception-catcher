@@ -314,8 +314,12 @@ class AggregateViewPage(webapp.RequestHandler):
 
   def get(self, viewLength):
     """Handles a new error report via POST."""
+    if viewLength != 'day':
+      # TODO(robbyw): For viewLength == week or viewLength == month, aggregate the aggregates.
+      viewLength = 'day'
+
     data = AggregatedStats.all().order('-date').get()
-    data = json.loads(data.json)[viewLength][:25]
+    data = json.loads(data.json)[:25]
 
     for _, row in data:
       logging.info(row)
@@ -326,7 +330,7 @@ class AggregateViewPage(webapp.RequestHandler):
     errors = LoggedError.get([db.Key(key) for key in keys])
 
     context = {
-      'title': 'Top 25 exceptions this %s' % viewLength,
+      'title': 'Top 25 exceptions over the last %s' % viewLength,
       'errors': zip(errors, values),
       'total': len(data)
     }

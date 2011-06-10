@@ -64,9 +64,7 @@ def main():
   logging.info('running the cron')
   now = datetime.now()
   oneDayAgo = now - timedelta(days = 1)
-  oneWeekAgo = now - timedelta(days = 7)
 
-  result = {}
   aggregation = collections.defaultdict(entry)
 
   count = 0
@@ -76,19 +74,19 @@ def main():
     count += 1
     if not count % 500:
       logging.info('Finished %d items', count)
-  result['day'] = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
+  result = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
 
   logging.info('Finished first day of data')
 
-  query = lambda: LoggedErrorInstance.all().filter('date <', oneDayAgo).filter('date >=', oneWeekAgo)
-  for instance in retryingIter(query):
-    aggregate(aggregation, instance)
-    count += 1
-    if not count % 500:
-      logging.info('Finished %d items', count)
-  result['week'] = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
-
-  logging.info('Finished first week of data')
+#  query = lambda: LoggedErrorInstance.all().filter('date <', oneDayAgo).filter('date >=', oneWeekAgo)
+#  for instance in retryingIter(query):
+#    aggregate(aggregation, instance)
+#    count += 1
+#    if not count % 500:
+#      logging.info('Finished %d items', count)
+#  result['week'] = sorted(aggregation.items(), key=lambda item: item[1]['count'], reverse=True)
+#
+#  logging.info('Finished first week of data')
 
   stat = AggregatedStats()
   stat.date = now
