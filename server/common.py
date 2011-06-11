@@ -21,6 +21,8 @@ from google.appengine.ext import db
 
 from datamodel import Project
 
+import datetime
+
 
 def getProject(name):
   """Gets the project with the given name."""
@@ -31,3 +33,20 @@ def getProject(name):
     result = Project.get_or_insert(name)
     memcache.set(name, db.model_to_protobuf(result), namespace = 'projects')
     return result
+
+
+def parseDate(string):
+  """Parses an ISO format date string."""
+  return datetime.datetime.strptime(string, '%Y-%m-%d %H:%M:%S.%f')
+
+
+
+class AttrDict(dict):
+  """A dict that is accessible as attributes."""
+
+  def __getattr__(self, name):
+    return self[name]
+
+
+  def __setattr__(self, name, value):
+    self[name] = value
