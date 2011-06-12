@@ -39,7 +39,6 @@ from google.appengine.api import memcache, taskqueue
 # pylint: disable=E0611
 from google.appengine.ext import webapp
 
-
 import backtrace
 import collections
 from datetime import datetime
@@ -50,7 +49,7 @@ except ImportError:
   import json
 import logging
 
-from common import getProject
+from common import AttrDict, getProject, parseDate
 from datamodel import LoggedError, LoggedErrorInstance, Queue
 
 
@@ -86,20 +85,58 @@ def getAggregatedError(project, backtraceText, errorHash):
   return error
 
 
-def aggregateError(error, instance):
-  """Updates the given error to include the given instance."""
-  error.count += 1
-  error.firstOccurrence = min(error.firstOccurrence, instance.date)
-  if instance.date > error.lastOccurrence:
-    error.lastOccurrence = instance.date
-    error.backtrace = instance.backtrace
-    error.lastMessage = instance.message[:300]
+def aggregate(destination, count, first, last, lastMessage, backtraceText, environments, servers):
+  """Aggregates in to the given destination."""
+  destination.count += count
 
-  if instance.environment not in error.environments:
-    error.environments.append(instance.environment)
-  if instance.server not in error.servers:
-    error.servers.append(instance.server)
-  return error
+  if destination.firstOccurrence:
+    destination.firstOccurrence = min(destination.firstOccurrence, first)
+  else:
+    destination.firstOccurrence = first
+
+  if not destination.lastOccurrence or last > destination.lastOccurrence:
+    destination.lastOccurrence = last
+    destination.backtrace = backtraceText
+    destination.lastMessage = lastMessage
+
+  destination.environments = list(set(destination.environments) | set(environments))
+  destination.servers = list(set(destination.servers) | set(servers))
+
+
+def aggregateInstances(instances):
+  """Aggregates instances in to a meta instance."""
+  result = AttrDict(
+    count = 0,
+    firstOccurrence = None,
+    lastOccurrence = None,
+    lastMessage = None,
+    backtrace = None,
+    environments = set(),
+    servers = set()
+  )
+
+  for instance in instances:
+    if isinstance(instance, LoggedErrorInstance):
+      count = 1
+      first = instance.date
+      last = instance.date
+      lastMessage = instance.message[:300]
+      backtraceText = instance.backtrace[:30000]
+      environments = (instance.environment,)
+      servers = (instance.server,)
+    else:
+      count = instance['count']
+      first = parseDate(instance['firstOccurrence'])
+      last = parseDate(instance['lastOccurrence'])
+      lastMessage = instance['lastMessage']
+      backtraceText = instance['backtrace']
+      environments = instance['environments']
+      servers = instance['servers']
+
+    result.count += count
+    aggregate(result, count, first, last, lastMessage, backtraceText, environments, servers)
+
+  return result
 
 
 def queueException(serializedException):
@@ -192,7 +229,6 @@ class ReportWorker(webapp.RequestHandler):
     task.delete()
 
 
-
 def getInstanceMap(instanceKeys):
   """Gets a map from key to instance for the given keys."""
   instances = LoggedErrorInstance.get(instanceKeys)
@@ -225,34 +261,52 @@ class AggregationWorker(webapp.RequestHandler):
     tasksByError = collections.defaultdict(list)
     for task in tasks:
       data = json.loads(task.payload)
-      instanceKey = data['instance']
-      byError[data['error']].append(instanceKey)
-      tasksByError[data['error']].append(task)
-      instanceKeys.append(instanceKey)
+      errorKey = data['error']
+      if 'instance' in data:
+        instanceKey = data['instance']
+        byError[errorKey].append(instanceKey)
+        instanceKeys.append(instanceKey)
+      else:
+        byError[errorKey].append(data['aggregation'])
+      tasksByError[errorKey].append(task)
 
-    errors = []
-    retryTasks = []
+    retries = 0
     instanceByKey = getInstanceMap(instanceKeys)
-    for errorKey, instanceKeys in byError.items():
-      if not _lockError(errorKey):
-        errors.append(errorKey)
-        retryTasks.extend(tasksByError[errorKey])
-        continue
+    for errorKey, instances in byError.items():
+      instances = [keyOrDict if isinstance(keyOrDict, dict) else instanceByKey[keyOrDict]
+                   for keyOrDict in instances]
+      aggregation = aggregateInstances(instances)
 
-      try:
-        for instanceKey in instanceKeys:
+      success = False
+      if _lockError(errorKey):
+        try:
           error = LoggedError.get(errorKey)
-          aggregateError(error, instanceByKey[instanceKey])
+          aggregate(
+              error, aggregation.count, aggregation.firstOccurrence,
+              aggregation.lastOccurrence, aggregation.lastMessage, aggregation.backtrace,
+              aggregation.environments, aggregation.servers)
           error.put()
-        q.delete_tasks(tasksByError[errorKey])
-      finally:
-        _unlockError(errorKey)
+          success = True
+        except: # pylint: disable=W0702
+          logging.exception('Error writing to data store for key %s.', errorKey)
+        finally:
+          _unlockError(errorKey)
+      else:
+        logging.info('Could not lock %s', errorKey)
 
-    if errors:
-      q.delete_tasks(retryTasks)
-      logging.info("Retrying %d tasks", len(retryTasks))
-      for task in retryTasks:
+      if not success:
+        # Add a retry task.
+        logging.info('Retrying aggregation for %d items for key %s', len(instances), errorKey)
+        aggregation.firstOccurrence = str(aggregation.firstOccurrence)
+        aggregation.lastOccurrence = str(aggregation.lastOccurrence)
+        aggregation.environments = list(aggregation.environments)
+        aggregation.servers = list(aggregation.servers)
         taskqueue.Queue('aggregation').add([
-          taskqueue.Task(payload = task.payload, method='PULL')
+          taskqueue.Task(payload = json.dumps({'error': errorKey, 'aggregation': aggregation}), method='PULL')
         ])
-      raise Exception('Locks failed when trying to lock errors %s' % ', '.join(errors))
+        retries += 1
+
+      q.delete_tasks(tasksByError[errorKey])
+
+    if retries:
+      raise Exception("Retrying %d tasks" % retries)
