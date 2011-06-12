@@ -37,7 +37,7 @@ def getProject(name):
 
 def parseDate(string):
   """Parses an ISO format date string."""
-  return datetime.datetime.strptime(string, '%Y-%m-%d %H:%M:%S.%f')
+  return datetime.datetime.strptime(string.split('.')[0], '%Y-%m-%d %H:%M:%S')
 
 
 
