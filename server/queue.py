@@ -64,8 +64,10 @@ def getEndpoints():
 def generateHash(exceptionType, backtraceText):
   """Generates a hash for the given exception type and backtrace."""
   hasher = hashlib.md5()
-  hasher.update(exceptionType.encode('utf-8'))
-  hasher.update(backtrace.normalizeBacktrace(backtraceText.encode('utf-8')))
+  if exceptionType:
+    hasher.update(exceptionType.encode('utf-8'))
+  if backtraceText:
+    hasher.update(backtrace.normalizeBacktrace(backtraceText.encode('utf-8')))
   return hasher.hexdigest()
 
 
