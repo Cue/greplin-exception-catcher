@@ -263,17 +263,17 @@ def _unlockError(key):
 class AggregationWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
 
-  def post(self): # pylint: disable=R0914
+  def post(self): # pylint: disable=R0914, R0915
     """Handles a new error report via POST."""
     taskId = self.request.get('id', '0')
     currentId = memcache.get(AGGREGATION_ID)
-    if not (taskId == currentId or int(taskId) % 100 == 0):
-      # Skip this task unless it is the most recently added or if it is one of every hundred tasks.
+    if not (taskId == currentId or int(taskId) % 50 == 0):
+      # Skip this task unless it is the most recently added or if it is one of every fifty tasks.
       logging.debug('Skipping task %s, current is %s', taskId, currentId)
       return
 
     q = taskqueue.Queue('aggregation')
-    tasks = q.lease_tasks(120, 500) # Get 500 tasks and lease for 2 minutes
+    tasks = q.lease_tasks(120, 250) # Get 250 tasks and lease for 2 minutes
     logging.info('Leased %d tasks', len(tasks))
 
     byError = collections.defaultdict(list)
@@ -282,13 +282,17 @@ class AggregationWorker(webapp.RequestHandler):
     for task in tasks:
       data = json.loads(task.payload)
       errorKey = data['error']
-      if 'instance' in data:
+      if 'instance' in data and 'backrace' in data:
         instanceKey = data['instance']
         byError[errorKey].append((instanceKey, data['backtrace']))
         instanceKeys.append(instanceKey)
-      else:
+        tasksByError[errorKey].append(task)
+      elif 'aggregation' in data:
         byError[errorKey].append(data['aggregation'])
-      tasksByError[errorKey].append(task)
+        tasksByError[errorKey].append(task)
+      else:
+        # Clean up any old tasks in the queue.
+        q.delete_tasks([task])
 
     retries = 0
     instanceByKey = getInstanceMap(instanceKeys)
