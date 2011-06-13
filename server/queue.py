@@ -130,7 +130,7 @@ def aggregateInstances(instances):
       environments = (instance.environment,)
       servers = (instance.server,)
     else:
-      count = instance['count']
+      count = int(instance['count'])
       first = parseDate(instance['firstOccurrence'])
       last = parseDate(instance['lastOccurrence'])
       lastMessage = instance['lastMessage']
@@ -138,7 +138,6 @@ def aggregateInstances(instances):
       environments = instance['environments']
       servers = instance['servers']
 
-    result.count += count
     aggregate(result, count, first, last, lastMessage, backtraceText, environments, servers)
 
   return result
