@@ -259,6 +259,23 @@ def _unlockError(key):
   return memcache.delete(key, namespace = 'errorLocks')
 
 
+def _getTasks(q):
+  """Get tasks in smaller chunks to try to work around GAE issues."""
+  tasks = []
+  while len(tasks) < 250:
+    try:
+      newTasks = q.lease_tasks(180, 25)
+    except Exception: # pylint: disable=W0703
+      if not tasks:
+        raise
+      logging.exception('Failed to lease all desired tasks')
+      break
+    tasks.extend(newTasks)
+    if len(newTasks) < 25:
+      break
+  return tasks
+
+
 
 class AggregationWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
@@ -273,7 +290,7 @@ class AggregationWorker(webapp.RequestHandler):
       return
 
     q = taskqueue.Queue('aggregation')
-    tasks = q.lease_tasks(120, 250) # Get 250 tasks and lease for 2 minutes
+    tasks = _getTasks(q)
     logging.info('Leased %d tasks', len(tasks))
 
     byError = collections.defaultdict(list)
@@ -282,7 +299,7 @@ class AggregationWorker(webapp.RequestHandler):
     for task in tasks:
       data = json.loads(task.payload)
       errorKey = data['error']
-      if 'instance' in data and 'backrace' in data:
+      if 'instance' in data and 'backtrace' in data:
         instanceKey = data['instance']
         byError[errorKey].append((instanceKey, data['backtrace']))
         instanceKeys.append(instanceKey)
@@ -292,6 +309,7 @@ class AggregationWorker(webapp.RequestHandler):
         tasksByError[errorKey].append(task)
       else:
         # Clean up any old tasks in the queue.
+        logging.warn('Deleting an old task')
         q.delete_tasks([task])
 
     retries = 0
@@ -312,6 +330,7 @@ class AggregationWorker(webapp.RequestHandler):
               aggregation.lastOccurrence, aggregation.lastMessage, aggregation.backtrace,
               aggregation.environments, aggregation.servers)
           error.put()
+          logging.info('Successfully aggregated %r items for key %s', aggregation.count, errorKey)
           success = True
         except: # pylint: disable=W0702
           logging.exception('Error writing to data store for key %s.', errorKey)
