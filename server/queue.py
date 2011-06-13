@@ -108,6 +108,19 @@ def aggregate(destination, count, first, last, lastMessage, backtraceText, envir
   destination.servers = list(set(destination.servers) | set(servers))
 
 
+def aggregateSingleInstance(instance, backtraceText):
+  """Aggregates a single instance into an "aggregate" object."""
+  return {
+    'count': 1,
+    'firstOccurrence': str(instance.date),
+    'lastOccurrence': str(instance.date),
+    'lastMessage': instance.message[:300],
+    'backtrace': backtraceText,
+    'environments': (instance.environment,),
+    'servers': (instance.server,),
+  }
+
+
 def aggregateInstances(instances):
   """Aggregates instances in to a meta instance."""
   result = AttrDict(
@@ -121,24 +134,14 @@ def aggregateInstances(instances):
   )
 
   for instance in instances:
-    if isinstance(instance, LoggedErrorInstance):
-      count = 1
-      first = instance.date
-      last = instance.date
-      lastMessage = instance.message[:300]
-      backtraceText = instance.backtrace[:30000]
-      environments = (instance.environment,)
-      servers = (instance.server,)
-    else:
-      count = int(instance['count'])
-      first = parseDate(instance['firstOccurrence'])
-      last = parseDate(instance['lastOccurrence'])
-      lastMessage = instance['lastMessage']
-      backtraceText = instance['backtrace']
-      environments = instance['environments']
-      servers = instance['servers']
-
-    aggregate(result, count, first, last, lastMessage, backtraceText, environments, servers)
+    aggregate(result,
+              int(instance['count']),
+              parseDate(instance['firstOccurrence']),
+              parseDate(instance['lastOccurrence']),
+              instance['lastMessage'],
+              instance['backtrace'],
+              instance['environments'],
+              instance['servers'])
 
   return result
 
@@ -150,9 +153,9 @@ def queueException(serializedException):
   taskqueue.add(queue_name='instances', url='/reportWorker', params={'key': task.key()})
 
 
-def queueAggregation(error, instance):
+def queueAggregation(error, instance, backtraceText):
   """Enqueues a task to aggregate the given instance in to the given error."""
-  payload = {'error': str(error.key()), 'instance': str(instance.key())}
+  payload = {'error': str(error.key()), 'instance': str(instance.key()), 'backtrace': backtraceText}
   taskqueue.Queue('aggregation').add([
     taskqueue.Task(payload = json.dumps(payload), method='PULL')
   ])
@@ -214,7 +217,6 @@ def _putInstance(exception):
   instance.message = message
   instance.server = server
   instance.logMessage = logMessage
-  instance.backtrace = backtraceText
   if context:
     instance.context = json.dumps(context)
     if 'userId' in context:
@@ -222,7 +224,7 @@ def _putInstance(exception):
   instance.put()
 
   if needsAggregation:
-    queueAggregation(error, instance)
+    queueAggregation(error, instance, backtraceText)
 
 
 
@@ -282,7 +284,7 @@ class AggregationWorker(webapp.RequestHandler):
       errorKey = data['error']
       if 'instance' in data:
         instanceKey = data['instance']
-        byError[errorKey].append(instanceKey)
+        byError[errorKey].append((instanceKey, data['backtrace']))
         instanceKeys.append(instanceKey)
       else:
         byError[errorKey].append(data['aggregation'])
@@ -291,7 +293,9 @@ class AggregationWorker(webapp.RequestHandler):
     retries = 0
     instanceByKey = getInstanceMap(instanceKeys)
     for errorKey, instances in byError.items():
-      instances = [keyOrDict if isinstance(keyOrDict, dict) else instanceByKey[keyOrDict]
+      instances = [keyOrDict
+                      if isinstance(keyOrDict, dict)
+                      else aggregateSingleInstance(instanceByKey[keyOrDict[0]], keyOrDict[1])
                    for keyOrDict in instances]
       aggregation = aggregateInstances(instances)
 

@@ -86,8 +86,6 @@ class LoggedErrorInstance(db.Model):
 
   affectedUser = db.IntegerProperty()
 
-  backtrace = db.TextProperty()
-
 
   @classmethod
   def kind(cls):
