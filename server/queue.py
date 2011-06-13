@@ -53,6 +53,9 @@ from common import AttrDict, getProject, parseDate
 from datamodel import LoggedError, LoggedErrorInstance, Queue
 
 
+AGGREGATION_ID = 'currentAggregationId'
+
+
 def getEndpoints():
   """Returns endpoints needed for queue processing."""
   return [
@@ -154,19 +157,26 @@ def queueAggregation(error, instance):
   taskqueue.Queue('aggregation').add([
     taskqueue.Task(payload = json.dumps(payload), method='PULL')
   ])
+  queueAggregationWorker()
+
+
+def queueAggregationWorker():
+  """Enqueues a task to aggregate available instances."""
+  workerId = memcache.incr(AGGREGATION_ID, initial_value=0)
   taskqueue.add(queue_name='aggregationWorker',
-                url='/aggregationWorker')
+                url='/aggregationWorker',
+                params={'id': workerId})
 
 
 def _putInstance(exception):
   """Put an exception in the data store."""
-  backtraceText = exception['backtrace']
+  backtraceText = exception['backtrace'] or ''
   environment = exception.get('environment', 'Unknown')
   message = exception['message'] or ''
   project = exception['project']
   server = exception['serverName']
   timestamp = datetime.fromtimestamp(exception['timestamp'])
-  exceptionType = exception['type']
+  exceptionType = exception['type'] or ''
   logMessage = exception.get('logMessage')
   context = exception.get('context')
   errorLevel = exception.get('errorLevel')
@@ -254,6 +264,11 @@ class AggregationWorker(webapp.RequestHandler):
 
   def post(self):
     """Handles a new error report via POST."""
+    taskId = self.request.get('id', '0')
+    if taskId != memcache.get(AGGREGATION_ID) and int(taskId) % 100 == 0:
+      # Skip this task unless it is the most recently added or if it is one of every hundred tasks.
+      return
+
     q = taskqueue.Queue('aggregation')
     tasks = q.lease_tasks(600, 1000) # Get 1000 tasks and lease for 10 minutes
     logging.info('Leased %d tasks', len(tasks))
@@ -311,4 +326,5 @@ class AggregationWorker(webapp.RequestHandler):
       q.delete_tasks(tasksByError[errorKey])
 
     if retries:
-      raise Exception("Retrying %d tasks" % retries)
+      logging.warn("Retrying %d tasks", retries)
+      queueAggregationWorker()
