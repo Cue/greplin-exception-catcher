@@ -273,7 +273,7 @@ class AggregationWorker(webapp.RequestHandler):
       return
 
     q = taskqueue.Queue('aggregation')
-    tasks = q.lease_tasks(600, 1000) # Get 1000 tasks and lease for 10 minutes
+    tasks = q.lease_tasks(120, 500) # Get 500 tasks and lease for 2 minutes
     logging.info('Leased %d tasks', len(tasks))
 
     byError = collections.defaultdict(list)
