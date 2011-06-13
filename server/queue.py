@@ -262,11 +262,13 @@ def _unlockError(key):
 class AggregationWorker(webapp.RequestHandler):
   """Worker handler for reporting a new exception."""
 
-  def post(self):
+  def post(self): # pylint: disable=R0914
     """Handles a new error report via POST."""
     taskId = self.request.get('id', '0')
-    if taskId != memcache.get(AGGREGATION_ID) and int(taskId) % 100 == 0:
+    currentId = memcache.get(AGGREGATION_ID)
+    if not (taskId == currentId or int(taskId) % 100 == 0):
       # Skip this task unless it is the most recently added or if it is one of every hundred tasks.
+      logging.info('Skipping task %s, current is %s', taskId, currentId)
       return
 
     q = taskqueue.Queue('aggregation')
@@ -327,4 +329,5 @@ class AggregationWorker(webapp.RequestHandler):
 
     if retries:
       logging.warn("Retrying %d tasks", retries)
-      queueAggregationWorker()
+      for _ in range(retries):
+        queueAggregationWorker()
