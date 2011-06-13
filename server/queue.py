@@ -267,7 +267,7 @@ class AggregationWorker(webapp.RequestHandler):
     currentId = memcache.get(AGGREGATION_ID)
     if not (taskId == currentId or int(taskId) % 100 == 0):
       # Skip this task unless it is the most recently added or if it is one of every hundred tasks.
-      logging.info('Skipping task %s, current is %s', taskId, currentId)
+      logging.debug('Skipping task %s, current is %s', taskId, currentId)
       return
 
     q = taskqueue.Queue('aggregation')
