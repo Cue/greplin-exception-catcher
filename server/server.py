@@ -113,7 +113,7 @@ def getInstances(filters, parent = None, limit = None, offset = None):
     for key, value in filters.items():
       if key in INSTANCE_FILTERS:
         query = filterData(query, key, value)
-      elif key == 'project':
+      elif key == 'project' and not parent:
         query = query.ancestor(getProject(value))
 
   return query.order('-date').fetch(limit or 51, offset or 0)
