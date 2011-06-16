@@ -70,7 +70,7 @@ class GecHandler(logging.Handler):
     exception = {
       'type': item.exc_info[0].__module__ + '.' + item.exc_info[0].__name__,
       'message': str(item.exc_info[1]),
-      'logMessage': item.message,
+      'logMessage': getattr(item, 'message', None) or getattr(item, 'msg', None),
       'backtrace': item.exc_text
     }
     if self.__prepareException:
