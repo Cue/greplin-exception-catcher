@@ -1,0 +1,18 @@
+{% autoescape off %}{% if errors %}
+{{ errors|length }} new errors today:
+
+{% for error in errors %}
+{{baseUrl}}/view/{{error.key}}
+Last Message: {{error.lastMessage}}
+Count: {{error.count}}
+Project: {{error.parent_key.name}}
+Level: {{error.errorLevel}}
+Type: {{error.type}}
+Environments: {{error.environments|join:", "}}
+Servers: {{error.servers|join:", "}}
+
+{% endfor %}
+{% else %}
+Hooray - no new errors!
+{% endif %}
+{% endautoescape %}

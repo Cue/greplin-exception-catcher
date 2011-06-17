@@ -36,13 +36,12 @@ try:
 except ImportError:
   import json
 import logging
-import os
 import random
 import sys
 import time
 import traceback
 
-from common import getProject
+from common import getProject, getTemplatePath
 from datamodel import LoggedError, LoggedErrorInstance, AggregatedStats
 
 
@@ -57,11 +56,6 @@ REQUIRE_AUTH = config.get('requireAuth', True)
 
 
 ####### Utility methods. #######
-
-def getTemplatePath(name):
-  """Gets a path to the named template."""
-  return os.path.join(os.path.dirname(__file__), 'templates', name)
-
 
 INSTANCE_FILTERS = ('environment', 'server', 'affectedUser')
 

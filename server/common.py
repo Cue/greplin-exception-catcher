@@ -22,6 +22,7 @@ from google.appengine.ext import db
 from datamodel import Project
 
 import datetime
+import os.path
 
 
 def getProject(name):
@@ -38,6 +39,11 @@ def getProject(name):
 def parseDate(string):
   """Parses an ISO format date string."""
   return datetime.datetime.strptime(string.split('.')[0], '%Y-%m-%d %H:%M:%S')
+
+
+def getTemplatePath(name):
+  """Gets a path to the named template."""
+  return os.path.join(os.path.dirname(__file__), 'templates', name)
 
 
 

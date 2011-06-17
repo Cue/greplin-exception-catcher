@@ -13,8 +13,12 @@ handlers:
   script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
   login: admin
 
-- url: /mapreduce(/.*)?
-  script: mapreduce/main.py
+- url: /tasks/aggregate
+  script: aggregate.py
+  login: admin
+
+- url: /tasks/email
+  script: emailCron.py
   login: admin
 
 - url: /.*
