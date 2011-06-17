@@ -72,15 +72,17 @@ def getFilters(request):
   """Gets the filters applied to the given request."""
   filters = {}
   for key, value in request.params.items():
-    if key in INSTANCE_FILTERS or key in ('project', 'errorLevel'):
+    if key in INSTANCE_FILTERS or key in ('project', 'errorLevel', 'maxAgeHours'):
       filters[key] = value
   return filters
 
 
-def filterData(dataSet, key, value):
+def filterInstances(dataSet, key, value):
   """Filters a data set."""
   if key in INTEGER_FILTERS:
     return dataSet.filter(key + ' =', int(value))
+  elif key == 'maxAgeHours':
+    return dataSet
   else:
     return dataSet.filter(key + ' =', value)
 
@@ -95,9 +97,14 @@ def getErrors(filters, limit, offset):
   for key, value in filters.items():
     if key == 'project':
       errors = errors.ancestor(getProject(value))
+    elif key == 'maxAgeHours':
+      errors = errors.filter('firstOccurrence >', datetime.now() - timedelta(hours = int(value)))
     else:
       errors = errors.filter(key, value)
-  errors = errors.order('-lastOccurrence')
+  if 'maxAgeHours' in filters:
+    errors = errors.order('-firstOccurrence')
+  else:
+    errors = errors.order('-lastOccurrence')
 
   return errors.fetch(limit, offset), None
 
@@ -112,7 +119,7 @@ def getInstances(filters, parent = None, limit = None, offset = None):
   if filters:
     for key, value in filters.items():
       if key in INSTANCE_FILTERS:
-        query = filterData(query, key, value)
+        query = filterInstances(query, key, value)
       elif key == 'project' and not parent:
         query = query.ancestor(getProject(value))
 
