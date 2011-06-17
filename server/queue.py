@@ -74,7 +74,7 @@ def generateHash(exceptionType, backtraceText):
   return hasher.hexdigest()
 
 
-def getAggregatedError(project, backtraceText, errorHash):
+def getAggregatedError(project, errorHash):
   """Gets (and updates) the error matching the given report, or None if no matching error is found."""
   error = None
 
@@ -83,9 +83,7 @@ def getAggregatedError(project, backtraceText, errorHash):
   q = LoggedError.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
 
   for possibility in q:
-    if backtrace.normalizeBacktrace(possibility.backtrace) == backtrace.normalizeBacktrace(backtraceText):
-      error = possibility
-      break
+    return possibility
 
   return error
 
@@ -185,7 +183,7 @@ def _putInstance(exception):
 
   errorHash = generateHash(exceptionType, backtraceText)
 
-  error = getAggregatedError(project, backtraceText, errorHash)
+  error = getAggregatedError(project, errorHash)
 
   exceptionType = exceptionType.replace('\n', ' ')
   if len(exceptionType) > 500:
