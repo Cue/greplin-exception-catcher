@@ -31,7 +31,7 @@ def main():
   with open('config.json') as f:
     config = json.load(f)
 
-  for filename in ['app.yaml', 'index.yaml', 'mapreduce.yaml']:
+  for filename in ['app.yaml', 'index.yaml']:
     with open(filename + '.template') as f:
       template = f.read()
     template = template.replace('<id>', config['id'])
