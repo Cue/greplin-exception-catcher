@@ -98,6 +98,12 @@ def processFiles(files):
 
   for filename in files:
     if os.path.exists(filename):
+      try:
+        timestamp = os.stat(filename)[stat.ST_CTIME]
+      except OSError:
+        # Usually this happens when another process processes the same file.
+        continue
+
       processingFilename = filename + '.processing'
       try:
         shutil.move(filename, processingFilename)
@@ -116,7 +122,7 @@ def processFiles(files):
           print >> sys.stderr, str(ex)
         os.remove(processingFilename)
         continue
-      result['timestamp'] = os.stat(processingFilename)[stat.ST_CTIME]
+      result['timestamp'] = timestamp
 
       # Only delete on success - otherwise the file was moved
       if sendException(result, filename):
