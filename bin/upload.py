@@ -35,7 +35,7 @@ SETTINGS = {}
 
 
 def reportTooManyExceptions(deleted, example):
-  """Report a special message to the GEC server if we see too many exception"""
+  """Report a special message to the GEC server if we see too many exceptions."""
   newErr = {
     "project": "GEC",
     "environment": example["environment"],
@@ -56,7 +56,8 @@ def sendException(jsonData, filename):
     """Handles an error by printing it and marking the file as available but with an additional strike."""
     print message % filename
     print e
-    shutil.move(filename + '.processing', os.path.join(os.path.dirname(filename), '_' + os.path.basename(filename)))
+    if filename != 'NoFilename':
+      shutil.move(filename + '.processing', os.path.join(os.path.dirname(filename), '_' + os.path.basename(filename)))
 
 
   request = urllib2.Request('%s/report?key=%s' % (SETTINGS["server"], SETTINGS["secretKey"]),
