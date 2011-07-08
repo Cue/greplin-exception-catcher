@@ -35,6 +35,8 @@ class Project(db.Model):
 class LoggedError(db.Model):
   """Model for a logged error."""
 
+  project = db.ReferenceProperty(Project)
+
   backtrace = db.TextProperty()
 
   type = db.StringProperty()
@@ -61,12 +63,16 @@ class LoggedError(db.Model):
   @classmethod
   def kind(cls):
     """Returns the datastore name for this model class."""
-    return 'LoggedErrorV%d' % (config.get('datastoreVersion', 2))
+    return 'LoggedErrorV2_%d' % (config.get('datastoreVersion', 2))
 
 
 
 class LoggedErrorInstance(db.Model):
   """Model for each occurrence of an error."""
+
+  project = db.ReferenceProperty(Project)
+
+  error = db.ReferenceProperty(LoggedError)
 
   environment = db.StringProperty()
 
@@ -90,7 +96,7 @@ class LoggedErrorInstance(db.Model):
   @classmethod
   def kind(cls):
     """Returns the datastore name for this model class."""
-    return 'LoggedErrorInstanceV%d' % (config.get('datastoreVersion', 2))
+    return 'LoggedErrorInstanceV2_%d' % (config.get('datastoreVersion', 2))
 
 
 

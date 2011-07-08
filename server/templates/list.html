@@ -20,7 +20,7 @@
         <tbody>
           {% for error in errors %}
             <tr>
-              <td class="project"><a href="#" class="project">{{ error.parent_key.name|escape }}</a></td>
+              <td class="project"><a href="#" class="project">{{ error.project.key.name|escape }}</a></td>
               <td class="error-level"><a href="#" class="errorLevel">{{ error.errorLevel|escape }}</a></td>
               <td class="error-type">{{ error.type|escape }}</td>
               <td class="error-message">
@@ -60,7 +60,7 @@
         <tbody>
           {% for instance in instances %}
             <tr>
-              <td class="project"><a href="#" class="project">{{ instance.parent_key.parent.name|escape }}</a></td>
+              <td class="project"><a href="#" class="project">{{ instance.project.key.name|escape }}</a></td>
               <td class="error-level"><a href="#" class="errorLevel">{{ instance.errorLevel|escape }}</a></td>
               <td class="error-type">{{ instance.type|escape }}</td>
               <td class="error-message">

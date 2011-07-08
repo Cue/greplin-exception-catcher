@@ -5,7 +5,7 @@
 {{baseUrl}}/view/{{error.key}}
 Last Message: {{error.lastMessage}}
 Count: {{error.count}}
-Project: {{error.parent_key.name}}
+Project: {{error.project.key.name}}
 Level: {{error.errorLevel}}
 Type: {{error.type}}
 Environments: {{error.environments|join:", "}}

@@ -80,7 +80,7 @@ def getAggregatedError(project, errorHash):
 
   project = getProject(project)
 
-  q = LoggedError.all().ancestor(project).filter('hash =', errorHash).filter('active =', True)
+  q = LoggedError.all().filter('project =', project).filter('hash =', errorHash).filter('active =', True)
 
   for possibility in q:
     return possibility
@@ -192,29 +192,32 @@ def _putInstance(exception):
 
   needsAggregation = True
   if not error:
-    error = LoggedError(parent = getProject(project))
-    error.backtrace = backtraceText
-    error.type = exceptionType
-    error.hash = errorHash
-    error.active = True
-    error.errorLevel = errorLevel
-    error.count = 1
-    error.firstOccurrence = timestamp
-    error.lastOccurrence = timestamp
-    error.lastMessage = message[:300]
-    error.environments = [str(environment)]
-    error.servers = [server]
+    error = LoggedError(
+        project = getProject(project),
+        backtrace = backtraceText,
+        type = exceptionType,
+        hash = errorHash,
+        active = True,
+        errorLevel = errorLevel,
+        count = 1,
+        firstOccurrence = timestamp,
+        lastOccurrence = timestamp,
+        lastMessage = message[:300],
+        environments = [str(environment)],
+        servers = [server])
     error.put()
     needsAggregation = False
 
-  instance = LoggedErrorInstance(parent = error)
-  instance.environment = environment
-  instance.type = exceptionType
-  instance.errorLevel = errorLevel
-  instance.date = timestamp
-  instance.message = message
-  instance.server = server
-  instance.logMessage = logMessage
+  instance = LoggedErrorInstance(
+      project = error.project,
+      error = error,
+      environment = environment,
+      type = exceptionType,
+      errorLevel = errorLevel,
+      date = timestamp,
+      message = message,
+      server = server,
+      logMessage = logMessage)
   if context:
     instance.context = json.dumps(context)
     if 'userId' in context:

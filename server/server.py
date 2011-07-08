@@ -89,9 +89,7 @@ def getErrors(filters, limit, offset):
 
   errors = LoggedError.all().filter('active =', True)
   for key, value in filters.items():
-    if key == 'project':
-      errors = errors.ancestor(getProject(value))
-    elif key == 'maxAgeHours':
+    if key == 'maxAgeHours':
       errors = errors.filter('firstOccurrence >', datetime.now() - timedelta(hours = int(value)))
     else:
       errors = errors.filter(key, value)
@@ -108,7 +106,7 @@ def getInstances(filters, parent = None, limit = None, offset = None):
 
   query = LoggedErrorInstance.all()
   if parent:
-    query = query.ancestor(parent)
+    query = query.filter('error =', parent)
 
   if filters:
     for key, value in filters.items():
