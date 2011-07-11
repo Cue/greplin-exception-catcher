@@ -176,7 +176,7 @@ def _putInstance(exception):
   project = exception['project']
   server = exception['serverName']
   timestamp = datetime.fromtimestamp(exception['timestamp'])
-  exceptionType = exception['type'] or ''
+  exceptionType = exception.get('type') or ''
   logMessage = exception.get('logMessage')
   context = exception.get('context')
   errorLevel = exception.get('errorLevel')
