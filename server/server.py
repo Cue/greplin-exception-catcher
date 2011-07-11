@@ -91,6 +91,8 @@ def getErrors(filters, limit, offset):
   for key, value in filters.items():
     if key == 'maxAgeHours':
       errors = errors.filter('firstOccurrence >', datetime.now() - timedelta(hours = int(value)))
+    elif key == 'project':
+      errors = errors.filter('project =', getProject(value))
     else:
       errors = errors.filter(key, value)
   if 'maxAgeHours' in filters:
@@ -113,7 +115,7 @@ def getInstances(filters, parent = None, limit = None, offset = None):
       if key in INSTANCE_FILTERS:
         query = filterInstances(query, key, value)
       elif key == 'project' and not parent:
-        query = query.ancestor(getProject(value))
+        query = query.filter('project =', getProject(value))
 
   return query.order('-date').fetch(limit or 51, offset or 0)
 
