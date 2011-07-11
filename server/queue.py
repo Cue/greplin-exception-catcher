@@ -221,7 +221,10 @@ def _putInstance(exception):
   if context:
     instance.context = json.dumps(context)
     if 'userId' in context:
-      instance.affectedUser = int(context['userId'])
+      try:
+        instance.affectedUser = int(context['userId'])
+      except (TypeError, ValueError):
+        pass
   instance.put()
 
   if needsAggregation:
