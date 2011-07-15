@@ -288,7 +288,7 @@ class AggregationWorker(webapp.RequestHandler):
     """Handles a new error report via POST."""
     taskId = self.request.get('id', '0')
     currentId = memcache.get(AGGREGATION_ID)
-    if not (taskId == currentId or int(taskId) % 50 == 0):
+    if taskId == 'None' or not (taskId == currentId or int(taskId) % 50 == 0):
       # Skip this task unless it is the most recently added or if it is one of every fifty tasks.
       logging.debug('Skipping task %s, current is %s', taskId, currentId)
       return
