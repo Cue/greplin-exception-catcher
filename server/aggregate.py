@@ -42,7 +42,7 @@ def entry():
 
 def aggregate(aggregation, instance):
   """Aggregates an instance in to the global stats."""
-  item = aggregation[str(instance.parent_key())]
+  item = aggregation[str(instance.error.key())]
   item['count'] += 1
   item['servers'][instance.server] += 1
   item['environments'][instance.environment] += 1
