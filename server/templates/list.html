@@ -64,7 +64,7 @@
               <td class="error-level"><a href="#" class="errorLevel">{{ instance.errorLevel|escape }}</a></td>
               <td class="error-type">{{ instance.type|escape }}</td>
               <td class="error-message">
-                <a class="message" href="/view/{{ instance.parent_key }}">{{ instance.message|escape|default:"none" }}</a>
+                <a class="message" href="/view/{{ instance.error.key }}">{{ instance.message|escape|default:"none" }}</a>
               </td>
               <td class="environments">
                 <a href="#" class="environment">{{ instance.environment|escape }}</a>
