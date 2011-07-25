@@ -14,8 +14,6 @@
 
 """Classes for logging exceptions to files suitable for sending to gec."""
 
-
-
 import json
 import os
 import os.path
@@ -24,11 +22,12 @@ import logging
 import time
 
 
+
 class GecHandler(logging.Handler):
   """Log observer that writes exceptions to json files to be picked up by upload.py."""
 
 
-  def __init__(self, path, project, environment, serverName, prepareException = None):
+  def __init__(self, path, project, environment, serverName, prepareException=None):
     self.__path = path
     self.__project = project
     self.__environment = environment
@@ -40,8 +39,8 @@ class GecHandler(logging.Handler):
   def emit(self, item):
     """Emit an error from the given event, if it was an error event."""
     result = {
-      'project':self.__project,
-      'environment':self.__environment,
+      'project': self.__project,
+      'environment': self.__environment,
       'serverName': self.__serverName
     }
     if item.exc_info:
@@ -60,9 +59,9 @@ class GecHandler(logging.Handler):
   def formatLogMessage(self, item):
     """Format a log message that got triggered without an exception"""
     return {
-      'type':"%s message" % item.levelname,
-      'message':item.getMessage(),
-      'backtrace':"%s:%d at %s" % (item.module, item.lineno, item.pathname)
+      'type': "%s message" % item.levelname,
+      'message': item.getMessage(),
+      'backtrace': "%s:%d at %s" % (item.module, item.lineno, item.pathname)
     }
 
 
@@ -86,54 +85,62 @@ class GecHandler(logging.Handler):
 
 
 class GentleGecHandler(GecHandler):
+  """A gec log handler that will stop logging when free disk space / inodes become too low
+  """
 
   SPACE_CHECK_COUNTER_MAX = 128
   LIMITED_LOGGING_PC = 0.3
   NO_LOGGING_PC = 0.1
 
 
-  def __init__(self, path, project, environment, serverName, prepareException = None):
-      GecHandler.__init__(self, path, project, environment, serverName, prepareException)
-      self.spaceCheckCounter = 0
-      self.lastStatus = True
+  def __init__(self, path, project, environment, serverName, prepareException=None):
+    GecHandler.__init__(self, path, project, environment, serverName, prepareException)
+    self.spaceCheckCounter = 0
+    self.lastStatus = True
 
 
   def logDiskSpaceError(self):
-      # log this as an error
-      noSpaceLeft = {'created': time.time(),
-      'process': os.getpid(),
-      'module': 'greplin.gec.logging.logHandler',
-      'levelno': 40,
-      'exc_text': None,
-      'lineno': 113,
-      'msg': 'Not enough free blocks/inodes on this disk',
-      'exc_info': None,
-      'funcName': 'checkSpace',
-      'levelname': 'ERROR'}
-      GecHandler.emit(self, logging.makeLogRecord(noSpaceLeft))
+    """Log an error message complaining about low disk space (instead of the original message)
+    """
+    noSpaceLeft = {'created': time.time(),
+                   'process': os.getpid(),
+                   'module': 'greplin.gec.logging.logHandler',
+                   'levelno': 40,
+                   'exc_text': None,
+                   'lineno': 113,
+                   'msg': 'Not enough free blocks/inodes on this disk',
+                   'exc_info': None,
+                   'funcName': 'checkSpace',
+                   'levelname': 'ERROR'}
+    GecHandler.emit(self, logging.makeLogRecord(noSpaceLeft))
 
 
   def doCheckSpace(self):
-      self.spaceCheckCounter = GentleGecHandler.SPACE_CHECK_COUNTER_MAX
-      vfsStat = os.statvfs(self._GecHandler__path)
-      blocksLeft = float(vfsStat.f_bavail) / vfsStat.f_blocks
-      inodesLeft = float(vfsStat.f_favail) / vfsStat.f_files
-      if blocksLeft < self.LIMITED_LOGGING_PC or inodesLeft < self.LIMITED_LOGGING_PC:
-          self.lastStatus = False
-          if blocksLeft > self.NO_LOGGING_PC or inodesLeft > self.NO_LOGGING_PC:
-              self.logDiskSpaceError()
-      else:
-          self.lastStatus = True
+    """Check blocks/inodes and log an error if we're too low on either
+    """
+    vfsStat = os.statvfs(self._GecHandler__path)
+    blocksLeft = float(vfsStat.f_bavail) / vfsStat.f_blocks
+    inodesLeft = float(vfsStat.f_favail) / vfsStat.f_files
+    if blocksLeft < self.LIMITED_LOGGING_PC or inodesLeft < self.LIMITED_LOGGING_PC:
+      self.lastStatus = False
+      if blocksLeft > self.NO_LOGGING_PC or inodesLeft > self.NO_LOGGING_PC:
+        self.logDiskSpaceError()
+    else:
+      self.lastStatus = True
 
 
   def checkSpace(self):
-      # should we actually check ?
-      self.spaceCheckCounter -= 1
-      if self.spaceCheckCounter < 0:
-          self.doCheckSpace()
-      return self.lastStatus
+    """Runs the actual disk space check only on every SPACE_CHECK_COUNTER_MAX calls
+    """
+    self.spaceCheckCounter -= 1
+    if self.spaceCheckCounter < 0:
+      self.spaceCheckCounter = GentleGecHandler.SPACE_CHECK_COUNTER_MAX
+      self.doCheckSpace()
+    return self.lastStatus
 
 
   def emit(self, item):
-      if self.checkSpace():
-          GecHandler.emit(self, item)
+    """Log a message if we have enough disk resources.
+    """
+    if self.checkSpace():
+      GecHandler.emit(self, item)
