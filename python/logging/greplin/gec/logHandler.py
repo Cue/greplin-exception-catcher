@@ -58,9 +58,14 @@ class GecHandler(logging.Handler):
 
   def formatLogMessage(self, item):
     """Format a log message that got triggered without an exception"""
+    try:
+      itemMessage = item.getMessage()
+    except TypeError:
+      itemMessage = 'Error formatting message'
+      
     return {
       'type': "%s message" % item.levelname,
-      'message': item.getMessage(),
+      'message': itemMessage,
       'backtrace': "%s:%d at %s" % (item.module, item.lineno, item.pathname)
     }
 
