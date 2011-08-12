@@ -18,6 +18,7 @@ import json
 import os.path
 import traceback
 import uuid
+import random
 
 from twisted.python import log, util
 
@@ -82,14 +83,19 @@ class GecLogObserver(object):
           extras[key] = value
 
       output = json.dumps(self.__formatFailure(eventDict['failure'], eventDict.get('why'), extras))
+      self.write(output)
 
-      while True:
-        filename = os.path.join(self.__path, str(uuid.uuid4()) + '.gec.json')
-        if not os.path.exists(filename):
-          with open(filename, 'w') as f:
-            util.untilConcludes(f.write, output)
-            util.untilConcludes(f.flush)
-          break
+
+  def write(self, output):
+    """Write a GEC error report, making sure we do not overwrite an existing one
+    """
+    while True:
+      filename = os.path.join(self.__path, str(uuid.uuid4()) + '.gec.json')
+      if not os.path.exists(filename):
+        with open(filename, 'w') as f:
+          util.untilConcludes(f.write, output)
+          util.untilConcludes(f.flush)
+        break
 
 
   def start(self):
@@ -100,3 +106,29 @@ class GecLogObserver(object):
   def stop(self):
     """Stop observing log events."""
     log.removeObserver(self.emit)
+
+
+
+class GentleGecLogObserver(GecLogObserver):
+  """ A GEC Handler that conserves disk space by overwriting errors
+  """
+
+  MAX_BASENAME = 10
+  MAX_ERRORS = 10000
+
+
+  def __init__(self, path, project, environment, serverName):
+    GecLogObserver.__init__(self, path, project, environment, serverName)
+    self.baseName = random.randint(0, GentleGecLogObserver.MAX_BASENAME)
+    self.errorId = random.randint(0, GentleGecLogObserver.MAX_ERRORS)
+
+
+  def write(self, output):
+    """Write a gec error report, possibly overwriting a previous one
+    """
+    self.errorId = (self.errorId + 1) % GentleGecLogObserver.MAX_ERRORS
+    filename = os.path.join(self._GecHandler__path, '%d-%d.gec.json' % (self.baseName, self.errorId))
+    with open(filename, 'w') as f:
+      util.untilConcludes(f.write, output)
+      util.untilConcludes(f.flush)
+
