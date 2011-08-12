@@ -20,6 +20,7 @@ import os.path
 import uuid
 import logging
 import time
+import random
 
 
 
@@ -38,18 +39,23 @@ class GecHandler(logging.Handler):
 
   def emit(self, item):
     """Emit an error from the given event, if it was an error event."""
+    if item.exc_info:
+      formatted = self.formatException(item)
+    elif item.levelname == "ERROR":
+      formatted = self.formatLogMessage(item)
+    else:
+      return
     result = {
       'project': self.__project,
       'environment': self.__environment,
       'serverName': self.__serverName
     }
-    if item.exc_info:
-      result.update(self.formatException(item))
-    elif item.levelname == "ERROR":
-      result.update(self.formatLogMessage(item))
-    else:
-      return
-    output = json.dumps(result)
+    result.update(formatted)
+    self.write(json.dumps(result))
+
+
+  def write(self, output):
+    """Write an exception to disk, possibly overwriting a previous one"""
     filename = os.path.join(self.__path, str(uuid.uuid4()) + '.gec.json')
     if not os.path.exists(filename):
       with open(filename, 'w') as f:
@@ -90,6 +96,28 @@ class GecHandler(logging.Handler):
 
 
 class GentleGecHandler(GecHandler):
+  """A GEC Handler that conserves disk space by overwriting errors  
+  """
+    
+  MAX_BASENAME = 10
+  MAX_ERRORS = 10000
+
+    
+  def __init__(self, path, project, environment, serverName, prepareException=None):
+    GecHandler.__init__(self, path, project, environment, serverName, prepareException)
+    self.baseName = random.randint(0, GentleGecHandler.MAX_BASENAME)
+    self.errorId = random.randint(0, GentleGecHandler.MAX_ERRORS)
+    
+
+  def write(self, output):
+    self.errorId = (self.errorId + 1) % GentleGecHandler.MAX_ERRORS
+    filename = os.path.join(self._GecHandler__path, '%d-%d.gec.json' % (self.baseName, self.errorId))
+    with open(filename, 'w') as f:
+      f.write(output)
+
+
+
+class SpaceAwareGecHandler(GecHandler):
   """A gec log handler that will stop logging when free disk space / inodes become too low
   """
 
@@ -149,3 +177,5 @@ class GentleGecHandler(GecHandler):
     """
     if self.checkSpace():
       GecHandler.emit(self, item)
+
+      
