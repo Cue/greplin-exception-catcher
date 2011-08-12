@@ -30,14 +30,45 @@ import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
  * log4j appender that writes exceptions to a file.
  */
 public final class GecAppender extends AppenderSkeleton {
+  /**
+   * Number of prefixes to use to reduce risk of server invocations overwriting
+   * eachother's error logs.
+   */
+  private static final int MAX_BASENAME = 10;
+
+  /**
+   * Maximum number of errors a single instance of the server can write.
+   */
+  private static final int MAX_ERRORS = 10000;
+
+  /**
+   * Base name for error files.  Used to reduce risk of server invocations
+   * clobbering eachother's error logs.
+   */
+  private static final String BASENAME;
+
+  /**
+   * ID for the next error will be this value modulo MAX_ERRORS.
+   */
+  private static final AtomicLong ERROR_ID;
+
+  static {
+    Random random = new Random();
+    // We randomly choose a base name and starting number to minimize the risk
+    // of multiple invocations of a server overwriting error logs.
+    BASENAME = random.nextInt(MAX_BASENAME) + "-";
+    ERROR_ID = new AtomicLong(random.nextInt(MAX_ERRORS));
+  }
+
   /**
    * Name of the project we are logging exceptions for.
    */
@@ -75,9 +106,9 @@ public final class GecAppender extends AppenderSkeleton {
 
   @Override
   protected void append(final LoggingEvent loggingEvent) {
-    UUID uniqueId = UUID.randomUUID();
     try {
-      String filename = uniqueId.toString() + ".gec.json";
+      String errorId = BASENAME + (ERROR_ID.incrementAndGet() % MAX_ERRORS);
+      String filename = errorId + ".gec.json";
       File output = new File(outputDirectory, filename + ".writing");
       Writer writer = new FileWriter(output);
 
