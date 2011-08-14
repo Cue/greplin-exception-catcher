@@ -102,8 +102,8 @@ def aggregate(destination, count, first, last, lastMessage, backtraceText, envir
     destination.backtrace = backtraceText
     destination.lastMessage = lastMessage
 
-  destination.environments = list(set(destination.environments) | set(environments))
-  destination.servers = list(set(destination.servers) | set(servers))
+  destination.environments = [str(x) for x in (set(destination.environments) | set(environments))]
+  destination.servers = [str(x) for x in (set(destination.servers) | set(servers))]
 
 
 def aggregateSingleInstance(instance, backtraceText):
