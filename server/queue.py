@@ -170,7 +170,7 @@ def queueAggregationWorker():
 
 def _putInstance(exception):
   """Put an exception in the data store."""
-  backtraceText = exception['backtrace'] or ''
+  backtraceText = exception.get('backtrace') or ''
   environment = exception.get('environment', 'Unknown')
   message = exception['message'] or ''
   project = exception['project']
