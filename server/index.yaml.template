@@ -7,6 +7,13 @@ indexes:
 - kind: LoggedErrorV2_<version>
   properties:
   - name: active
+  - name: firstOccurrence
+    direction: desc
+
+
+- kind: LoggedErrorV2_<version>
+  properties:
+  - name: active
   - name: environment
   - name: lastOccurrence
     direction: desc
