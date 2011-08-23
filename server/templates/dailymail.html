@@ -1,0 +1,36 @@
+{% autoescape off %}
+  {% if errorCount %}
+    <p>{{ errorCount }} new errors today:</p>
+
+    {% for project, errors in projects %}
+      <p><b>{{ project }}</b></p>
+      <table cellpadding="3" cellspacing="0" style="border: 1px solid #333" border="0">
+        <tr>
+          <th>Count</th>
+          <th>Message</th>
+          <th>Type</th>
+          <th>Environments</th>
+        </tr>
+        {% for error in errors %}
+          <tr style="background: {% cycle '#eee' 'none' %}">
+            <td valign="top">
+              {{ error.count }}
+            </td>
+            <td valign="top">
+              <a href="{{baseUrl}}/view/{{error.key}}">{{error.lastMessage|default:"no message"}}</a>
+            </td>
+            <td valign="top">
+              {{error.type}}
+            </td>
+            <td valign="top" style="font-size: 80%">
+              {{error.environments|join:", "}}<br>
+              {{error.servers|join:", "}}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endfor %}
+  {% else %}
+    Hooray - no new errors!
+  {% endif %}
+{% endautoescape %}

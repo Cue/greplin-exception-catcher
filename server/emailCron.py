@@ -27,6 +27,7 @@ from common import getTemplatePath
 import config
 from datamodel import LoggedError
 
+import collections
 from datetime import datetime, timedelta
 import logging
 
@@ -46,11 +47,16 @@ def main():
 
     errors = errorQuery.fetch(500, 0)
     errors.sort(key = lambda x: x.count, reverse=True)
-    context = {'errors': errors, 'baseUrl': config.get('baseUrl')}
 
-    body = template.render(getTemplatePath('dailymail.txt'), context).strip()
-    mail.send_mail(sender=fromEmail, to=toEmail, subject='Latest GEC reports', body=body)
+    projects = collections.defaultdict(list)
+    for error in errors:
+      projects[error.project.key().name()].append(error)
 
+    context = {'projects': sorted(projects.items()), 'errorCount': len(errors), 'baseUrl': config.get('baseUrl')}
+
+    body = template.render(getTemplatePath('dailymail.html'), context).strip()
+    mail.send_mail(
+        sender=fromEmail, to=toEmail, subject='Latest GEC reports', body='Only available in HTML', html=body)
 
 
 if __name__ == '__main__':
