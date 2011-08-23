@@ -27,6 +27,7 @@ h1 {
 table {
   border-spacing: 0;
   width: 100%;
+  table-layout:fixed;
 }
 
 .error-type, .error-message {
