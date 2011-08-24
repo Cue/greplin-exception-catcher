@@ -21,6 +21,8 @@ REMOVE_JAVA_MESSAGE = re.compile(r'(Caused by: [^:]+:).*$', re.MULTILINE)
 
 REMOVE_PYTHON_MESSAGE = re.compile(r'^([a-zA-Z0-9_]+: ).*$', re.MULTILINE)
 
+REMOVE_OBJECTIVE_C_ADDRESS = re.compile(r'0x[0-9a-f]{8} ')
+
 
 def normalizeBacktrace(backtrace):
   """Normalizes a backtrace for more accurate aggregation."""
@@ -30,5 +32,6 @@ def normalizeBacktrace(backtrace):
     if not line.lstrip().startswith('at sun.reflect.'):
       line = REMOVE_JAVA_MESSAGE.sub(lambda match: match.group(1), line)
       line = REMOVE_PYTHON_MESSAGE.sub(lambda match: match.group(1), line)
+      line = REMOVE_OBJECTIVE_C_ADDRESS.sub(' ', line)
       normalizedLines.append(line)
   return '\n'.join(normalizedLines)
