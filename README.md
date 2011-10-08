@@ -109,6 +109,20 @@ GEC currently requires that you attach it to a single Google Apps domain for log
     twistedLog.GecLogObserver('/path/to/exception/directory', projectName, environmentName, serverName).start()
 
 
+### Javascript 
+
+1. Create an endpoint at your server to send this stuff to GEC.
+2. Modify the call to g.errorCatcher at the end of the file to pass in functions that pass exceptions to GEC and that
+   redact URLs respectively. (Note: your URL redaction function will be passed strings that may contain URLs, not bare
+   URLs, so keep that in mind)
+3. Wrap your JS files if you want to capture errors during their initial execution:
+    <pre>  try {  var your_js_here  }
+     catch(e) { window.g && g.handleInitialException && g.handleInitialException(e, '(script filename here)') }</pre>
+    If you use Closure Compiler, just add this flag: <pre>
+   --output_wrapper="window.COMPILED = true; try { %%output%% } catch(e) { window.g && g.handleInitialException && g.handleInitialException(e, '(script filename here)') }"</pre>
+4. This exception catching script can't see exceptions that happen before it's loaded, so make sure it's loaded early in
+   your page before most of your other scripts.
+
 ### Java using log4j
 
 #### Installation
