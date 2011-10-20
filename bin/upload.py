@@ -179,8 +179,19 @@ LOCKNAME defaults to 'upload-lock'"""
   try:
     processFiles(files)
   finally:
-    os.unlink(os.path.join(lock, 'pid'))
-    os.rmdir(lock)
+    try:
+      os.unlink(os.path.join(lock, 'pid'))
+    except IOError:
+      print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
+      print >> sys.stderr, 'Lock directory %r existence status: %r' % os.path.exists(lock)
+      if os.path.exists(lock):
+        print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
+    try:
+      os.rmdir(lock)
+    except OSError:
+      print >> sys.stderr, 'Could not delete lock directory %r (exists: %r(=)' % (lock, os.path.exists(lock))
+      if os.path.exists(lock):
+        print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
 
 
 if __name__ == '__main__':
