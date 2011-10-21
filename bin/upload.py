@@ -189,8 +189,9 @@ LOCKNAME defaults to 'upload-lock'"""
     try:
       os.rmdir(lock)
     except OSError:
-      print >> sys.stderr, 'Could not delete lock directory %r (exists: %r(=)' % (lock, os.path.exists(lock))
+      print >> sys.stderr, 'Could not delete lock directory %r (exists: %r)' % (lock, os.path.exists(lock))
       if os.path.exists(lock):
+        print 'Directory exists'
         print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
 
 
