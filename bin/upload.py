@@ -167,6 +167,10 @@ LOCKNAME defaults to 'upload-lock'"""
       time.sleep(5)
       os.kill(pid, signal.SIGKILL)
       time.sleep(1)
+      try:
+        os.mkdir(lock)
+      except OSError:
+        pass
       writePid(lock)
     except (IOError, ValueError, OSError):
       # No pid file, bad pid file, or pid doesn't exit. Fix this manually.
