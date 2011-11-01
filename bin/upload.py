@@ -143,7 +143,7 @@ def main():
     print """USAGE: upload.py SERVER SECRET_KEY PATH [LOCKNAME]
 
 LOCKNAME defaults to 'upload-lock'"""
-    exit(-1)
+    sys.exit(1)
 
 
   SETTINGS["server"] = sys.argv[1]
@@ -158,21 +158,20 @@ LOCKNAME defaults to 'upload-lock'"""
     os.mkdir(lock)
     writePid(lock)
   except OSError:
-    blocked = True
     try:
+      # Another upload.py instance is running! Kill it and take its place!
       with open(os.path.join(lock, 'pid')) as f:
         pid = int(f.read().strip())
       os.kill(pid, 0)
-    except (IOError, ValueError, OSError):
-      # No pid file, bad pid file, or pid doesn't exit.
       writePid(lock)
-      blocked = False
-
-    if blocked:
-      print "Lock directory '%s' already exists." % lock
-      print "Another upload.py appears to be running. Consider killing it and trying again."
-      exit(-1)
-
+    except (IOError, ValueError, OSError):
+      # No pid file, bad pid file, or pid doesn't exit. Fix this manually.
+      print "Lock directory %r already exists." % lock
+      print "Tried to find and kill an existing upload.py instance, but that didn't turn out right."
+      print "Another upload.py appears to be running, maybe? Consider killing it and trying again."
+      print "And remember to clean up the lock directory and the old pid file, if any."
+      sys.exit(1)
+      
   files = [os.path.join(path, f) for f in os.listdir(path)
            if f.endswith(".gec.json") and not '_____' in f]
 
