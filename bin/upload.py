@@ -27,6 +27,7 @@ import shutil
 import stat
 import sys
 import urllib2
+import signal
 
 FILES_TO_KEEP = 2000
 SETTINGS = {}
@@ -162,7 +163,10 @@ LOCKNAME defaults to 'upload-lock'"""
       # Another upload.py instance is running! Kill it and take its place!
       with open(os.path.join(lock, 'pid')) as f:
         pid = int(f.read().strip())
-      os.kill(pid, 0)
+      os.kill(pid, signal.SIGTERM)
+      time.sleep(5)
+      os.kill(pid, signal.SIGKILL)
+      time.sleep(1)
       writePid(lock)
     except (IOError, ValueError, OSError):
       # No pid file, bad pid file, or pid doesn't exit. Fix this manually.
