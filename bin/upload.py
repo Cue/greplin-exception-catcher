@@ -117,9 +117,9 @@ def processFiles(files):
       except ValueError, ex:
         with open(processingFilename) as f:
           print >> sys.stderr, "Could not read %s:" % filename
-          print >> sys.stderr, '\n------------------\n'
+          print >> sys.stderr, '\n"""'
           print >> sys.stderr, f.read()
-          print >> sys.stderr, '\n------------------\n'
+          print >> sys.stderr, '"""\n'
           print >> sys.stderr, str(ex)
         os.remove(processingFilename)
         continue
