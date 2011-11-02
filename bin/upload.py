@@ -144,14 +144,8 @@ def writePid(lockDir):
 
 
 def sigtermHandler(lock):
-  """Returns a SIGTERM handler for a given lock directory name. It
-  handles SIGTERM by cleaning up and quitting silently, so we don't
-  get error spam or left-over lock files."""
-  def handler(*_):
-    """Actual handler."""
-    deleteLock(lock)
-    sys.exit(0)
-  return handler
+  """When we get SIGTERM, exit quietly."""
+  sys.exit(0)
 
 
 def deleteLock(lock):
@@ -188,7 +182,7 @@ LOCKNAME defaults to 'upload-lock'"""
 
   lockName = sys.argv[4] if len(sys.argv) == 5 else 'upload-lock'
   lock = os.path.join(path, lockName)
-  signal.signal(signal.SIGTERM, sigtermHandler(lock))
+  signal.signal(signal.SIGTERM, sigtermHandler)
 
   # mkdir will fail if the directory already exists, so we can use it as a file lock
   try:
