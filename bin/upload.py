@@ -137,6 +137,33 @@ def writePid(lockDir):
     f.write(str(os.getpid()))
 
 
+def sigtermHandler(lock):
+  """Handle SIGTERM by quitting silently, so we don't get error spam."""
+  def handler(*_):
+    """Actual handler."""
+    deleteLock(lock)
+    sys.exit(0)
+  return handler
+
+
+def deleteLock(lock):
+  """Delete the lock and pid file."""
+  try:
+    os.unlink(os.path.join(lock, 'pid'))
+  except IOError:
+    print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
+    print >> sys.stderr, 'Lock directory %r existence status: %r' % os.path.exists(lock)
+    if os.path.exists(lock):
+      print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
+  try:
+    os.rmdir(lock)
+  except OSError:
+    print >> sys.stderr, 'Could not delete lock directory %r (exists: %r)' % (lock, os.path.exists(lock))
+    if os.path.exists(lock):
+      print >> sys.stderr, 'Lock directory exists.'
+      print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
+
+
 def main():
   """Runs the gec sender."""
 
@@ -153,6 +180,7 @@ LOCKNAME defaults to 'upload-lock'"""
 
   lockName = sys.argv[4] if len(sys.argv) == 5 else 'upload-lock'
   lock = os.path.join(path, lockName)
+  signal.signal(signal.SIGTERM, sigtermHandler(lock))
 
   # mkdir will fail if the directory already exists, so we can use it as a file lock
   try:
@@ -186,20 +214,7 @@ LOCKNAME defaults to 'upload-lock'"""
   try:
     processFiles(files)
   finally:
-    try:
-      os.unlink(os.path.join(lock, 'pid'))
-    except IOError:
-      print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
-      print >> sys.stderr, 'Lock directory %r existence status: %r' % os.path.exists(lock)
-      if os.path.exists(lock):
-        print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
-    try:
-      os.rmdir(lock)
-    except OSError:
-      print >> sys.stderr, 'Could not delete lock directory %r (exists: %r)' % (lock, os.path.exists(lock))
-      if os.path.exists(lock):
-        print >> sys.stderr, 'Lock directory exists.'
-        print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
+    deleteLock(lock)
 
 
 if __name__ == '__main__':
