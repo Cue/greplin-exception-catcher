@@ -158,14 +158,14 @@ def deleteLock(lock):
   """Delete the lock and pid file."""
   try:
     os.unlink(os.path.join(lock, 'pid'))
-  except IOError:
+  except (OSError, IOError):
     print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
     print >> sys.stderr, 'Lock directory %r existence status: %r' % os.path.exists(lock)
     if os.path.exists(lock):
       print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
   try:
     os.rmdir(lock)
-  except OSError:
+  except (OSError, IOError):
     print >> sys.stderr, 'Could not delete lock directory %r (exists: %r)' % (lock, os.path.exists(lock))
     if os.path.exists(lock):
       print >> sys.stderr, 'Lock directory exists.'
@@ -215,7 +215,7 @@ LOCKNAME defaults to 'upload-lock'"""
       print "Another upload.py appears to be running, maybe? Consider killing it and trying again."
       print "And remember to clean up the lock directory and the old pid file, if any."
       sys.exit(1)
-      
+
   files = [os.path.join(path, f) for f in os.listdir(path)
            if f.endswith(".gec.json") and not '_____' in f]
 
