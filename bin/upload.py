@@ -29,9 +29,10 @@ import sys
 import urllib2, httplib
 import signal
 
+# When processing files, delete all but the most recent FILES_TO_KEEP of them.
 FILES_TO_KEEP = 2000
+# Settings dict will be used to pass "server" and "secretKey" around.
 SETTINGS = {}
-
 
 
 
@@ -90,7 +91,7 @@ def sendException(jsonData, filename):
 
 
 def processFiles(files):
-  """Sends each exception file in files to gec"""
+  """Sends each exception file in files to GEC"""
 
   # only keep the newest FILES_TO_KEEP entries
   outstanding = len(files)
@@ -143,7 +144,9 @@ def writePid(lockDir):
 
 
 def sigtermHandler(lock):
-  """Handle SIGTERM by quitting silently, so we don't get error spam."""
+  """Returns a SIGTERM handler for a given lock directory name. It
+  handles SIGTERM by cleaning up and quitting silently, so we don't
+  get error spam or left-over lock files."""
   def handler(*_):
     """Actual handler."""
     deleteLock(lock)
@@ -196,9 +199,9 @@ LOCKNAME defaults to 'upload-lock'"""
       # Another upload.py instance is running! Kill it and take its place!
       with open(os.path.join(lock, 'pid')) as f:
         pid = int(f.read().strip())
-      os.kill(pid, signal.SIGTERM)
+      os.kill(pid, signal.SIGTERM) # Try SIGTERM, to let other guy clean up
       time.sleep(5)
-      os.kill(pid, signal.SIGKILL)
+      os.kill(pid, signal.SIGKILL)   # If he's not dead yet, kill him.
       time.sleep(1)
       try:
         os.mkdir(lock)
