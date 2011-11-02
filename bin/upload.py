@@ -26,7 +26,7 @@ import os.path
 import shutil
 import stat
 import sys
-import urllib2
+import urllib2, httplib
 import signal
 
 FILES_TO_KEEP = 2000
@@ -74,6 +74,11 @@ def sendException(jsonData, filename):
 
   except urllib2.URLError, e:
     handleError(e, 'Error while uploading %s')
+    return False
+
+  except httplib.BadStatusLine, e:
+    handleError(e, 'Bad status line from server while uploading %s')
+    print 'Status line: %r' % e.line
     return False
 
   status = response.getcode()
