@@ -154,7 +154,7 @@ def deleteLock(lock):
     os.unlink(os.path.join(lock, 'pid'))
   except (OSError, IOError):
     print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
-    print >> sys.stderr, 'Lock directory %r existence status: %r' % os.path.exists(lock)
+    print >> sys.stderr, 'Lock directory %r existence status: %r' % (lock, os.path.exists(lock))
     if os.path.exists(lock):
       print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
   try:
