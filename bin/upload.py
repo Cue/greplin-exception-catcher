@@ -143,7 +143,7 @@ def writePid(lockDir):
     f.write(str(os.getpid()))
 
 
-def sigtermHandler(lock):
+def sigtermHandler(*_):
   """When we get SIGTERM, exit quietly."""
   sys.exit(0)
 
