@@ -30,7 +30,7 @@ import fcntl
 import signal
 
 # max field size
-MAX_FIELD_SIZE = 4096
+MAX_FIELD_SIZE = 1024 * 10
 
 # HTTP request timeout
 HTTP_TIMEOUT = 5
