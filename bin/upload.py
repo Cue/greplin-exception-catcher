@@ -23,63 +23,59 @@ import json
 import os
 import time
 import os.path
-import shutil
 import stat
 import sys
 import urllib2, httplib
+import fcntl
 import signal
 
-# When processing files, delete all but the most recent FILES_TO_KEEP of them.
-FILES_TO_KEEP = 2000
+# max field size
+MAX_FIELD_SIZE = 4096
+
+# HTTP request timeout
+HTTP_TIMEOUT = 5
+
+# Maximum time we should run for
+MAX_RUN_TIME = 40
+
 # Settings dict will be used to pass "server" and "secretKey" around.
 SETTINGS = {}
 
-
-
-def reportTooManyExceptions(deleted, example):
-  """Report a special message to the GEC server if we see too many exceptions."""
-  newErr = {
-    "project": "GEC",
-    "environment": example["environment"],
-    "serverName": example["serverName"],
-    "message": "Too many exceptions - GEC deleted %d" % deleted,
-    "timestamp": int(time.time())
-  }
-  sendException(newErr, "NoFilename")
+def trimDict(obj):
+  """Trim string elements in a dictionnary to MAX_FIELD_SIZE"""
+  for k, v in obj.items():
+    if isinstance(v, basestring) and len(v) > MAX_FIELD_SIZE:
+      obj[k] = v[:MAX_FIELD_SIZE] + '(...)'
+    elif isinstance(v, dict):
+      trimDict(v)
 
 
 def sendException(jsonData, filename):
   """Send an exception to the GEC server
-     Returns True if sending succeeded
-     If the send fails, returns False and moves the file to '_' + filename"""
-
-
-  def handleError(e, message):
-    """Handles an error by printing it and marking the file as available but with an additional strike."""
-    print message % filename
-    print e
-    if filename != 'NoFilename':
-      shutil.move(filename + '.processing', os.path.join(os.path.dirname(filename), '_' + os.path.basename(filename)))
-
+     Returns True if sending succeeded"""
 
   request = urllib2.Request('%s/report?key=%s' % (SETTINGS["server"], SETTINGS["secretKey"]),
                             json.dumps(jsonData),
                             {'Content-Type': 'application/json'})
   try:
-    response = urllib2.urlopen(request)
+    response = urllib2.urlopen(request, timeout=HTTP_TIMEOUT)
 
   except urllib2.HTTPError, e:
-    handleError(e, 'Error from server while uploading %s')
-    print e.read()
+    print >> sys.stderr, 'Error from server while uploading %s' % filename
+    print >> sys.stderr, e.read()
     return False
 
-  except urllib2.URLError, e:
-    handleError(e, 'Error while uploading %s')
+  except urllib2.URLError, e:    
+    if e.reason not in ('timed out', 'The read operation timed out'):
+      print >> sys.stderr, 'Error while uploading %s' % filename
+      print >> sys.stderr, e
+      print >> sys.stderr, 'Reason: %s' % e.reason
     return False
 
   except httplib.BadStatusLine, e:
-    handleError(e, 'Bad status line from server while uploading %s')
-    print 'Status line: %r' % e.line
+    print >> sys.stderr, 'Bad status line from server while uploading %s' % filename
+    print >> sys.stderr, e
+    print >> sys.stderr, 'Status line: %r' % e.line
     return False
 
   status = response.getcode()
@@ -91,79 +87,56 @@ def sendException(jsonData, filename):
 
 
 def processFiles(files):
-  """Sends each exception file in files to GEC"""
-
-  # only keep the newest FILES_TO_KEEP entries
-  outstanding = len(files)
-  if outstanding > FILES_TO_KEEP:
-    deleted = outstanding-FILES_TO_KEEP
-    files = sorted(files, key=os.path.getctime)
-    with open(files[0]) as f:
-      reportTooManyExceptions(deleted, json.load(f))
-    [os.remove(f) for f in files[0:deleted] if os.path.exists(f)]
-    files = files[deleted:]
-
-
+  """Send each exception file in files to GEC"""
+  endTime = time.time() + MAX_RUN_TIME  
+  
   for filename in files:
-    if os.path.exists(filename):
-      try:
-        timestamp = os.stat(filename)[stat.ST_CTIME]
-      except OSError:
-        # Usually this happens when another process processes the same file.
-        continue
-
-      processingFilename = filename + '.processing'
-      try:
-        shutil.move(filename, processingFilename)
-      except IOError:
-        # Usually this happens when another process processes the same file.
-        continue
-      try:
-        with open(processingFilename) as f:
-          result = json.load(f)
-      except ValueError, ex:
-        with open(processingFilename) as f:
-          print >> sys.stderr, "Could not read %s:" % filename
-          print >> sys.stderr, '\n"""'
-          print >> sys.stderr, f.read()
-          print >> sys.stderr, '"""\n'
-          print >> sys.stderr, str(ex)
-        os.remove(processingFilename)
-        continue
-      result['timestamp'] = timestamp
-
-      # Only delete on success - otherwise the file was moved
-      if sendException(result, filename):
-        os.remove(processingFilename)
+    if time.time() > endTime:
+      return
+    if not os.path.exists(filename):
+      continue
+    try:
+      if processFile(filename):
+        os.unlink(filename)
+    except Exception, e: #pylint:disable=W0703
+      print >> sys.stderr, e
+      os.unlink(filename)
 
 
-def writePid(lockDir):
-  """Writes the current pid to the lock directory."""
-  with open(os.path.join(lockDir, 'pid'), 'w') as f:
-    f.write(str(os.getpid()))
+def processFile(filename):
+  """Process and upload a file.
+  Return True if the file has been processed as completely as it will ever be and can be deleted"""
+
+  with open(filename, 'r+') as f:
+    try:
+      # make sure we're alone on that file
+      fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+      return False
+
+    try:
+      result = json.load(f)
+      st = os.stat(filename)
+      result['timestamp'] = st.st_ctime
+      trimDict(result)
+      return sendException(result, filename)
+    except ValueError, ex:
+      print >> sys.stderr, "Could not read %s:" % filename
+      print >> sys.stderr, '\n"""'
+      f.seek(0)
+      print >> sys.stderr, f.read()
+      print >> sys.stderr, '"""\n'
+      print >> sys.stderr, str(ex)
+      return True # so this bogus file gets deleted
+    finally:
+      fcntl.lockf(f, fcntl.LOCK_UN)
 
 
-def sigtermHandler(*_):
-  """When we get SIGTERM, exit quietly."""
+        
+def alarmHandler(*_):
+  """SIGALRM handler"""
+  print >> sys.stderr, "Maximum run time reached, exiting"
   sys.exit(0)
-
-
-def deleteLock(lock):
-  """Delete the lock and pid file."""
-  try:
-    os.unlink(os.path.join(lock, 'pid'))
-  except (OSError, IOError):
-    print >> sys.stderr, 'Tried to delete nonexistent pid file %r' % os.path.join(lock, 'pid')
-    print >> sys.stderr, 'Lock directory %r existence status: %r' % (lock, os.path.exists(lock))
-    if os.path.exists(lock):
-      print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
-  try:
-    os.rmdir(lock)
-  except (OSError, IOError):
-    print >> sys.stderr, 'Could not delete lock directory %r (exists: %r)' % (lock, os.path.exists(lock))
-    if os.path.exists(lock):
-      print >> sys.stderr, 'Lock directory exists.'
-      print >> sys.stderr, 'Lock directory contents: %r' % os.listdir(lock)
 
 
 def main():
@@ -180,43 +153,12 @@ LOCKNAME defaults to 'upload-lock'"""
   SETTINGS["secretKey"] = sys.argv[2]
   path = sys.argv[3]
 
-  lockName = sys.argv[4] if len(sys.argv) == 5 else 'upload-lock'
-  lock = os.path.join(path, lockName)
-  signal.signal(signal.SIGTERM, sigtermHandler)
+  signal.signal(signal.SIGALRM, alarmHandler)
+  signal.alarm(int(MAX_RUN_TIME * 1.1))
 
-  # mkdir will fail if the directory already exists, so we can use it as a file lock
-  try:
-    os.mkdir(lock)
-    writePid(lock)
-  except OSError:
-    try:
-      # Another upload.py instance is running! Kill it and take its place!
-      with open(os.path.join(lock, 'pid')) as f:
-        pid = int(f.read().strip())
-      os.kill(pid, signal.SIGTERM) # Try SIGTERM, to let other guy clean up
-      time.sleep(5)
-      os.kill(pid, signal.SIGKILL)   # If he's not dead yet, kill him.
-      time.sleep(1)
-      try:
-        os.mkdir(lock)
-      except OSError:
-        pass
-      writePid(lock)
-    except (IOError, ValueError, OSError):
-      # No pid file, bad pid file, or pid doesn't exit. Fix this manually.
-      print "Lock directory %r already exists." % lock
-      print "Tried to find and kill an existing upload.py instance, but that didn't turn out right."
-      print "Another upload.py appears to be running, maybe? Consider killing it and trying again."
-      print "And remember to clean up the lock directory and the old pid file, if any."
-      sys.exit(1)
+  files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".gec.json")]
 
-  files = [os.path.join(path, f) for f in os.listdir(path)
-           if f.endswith(".gec.json") and not '_____' in f]
-
-  try:
-    processFiles(files)
-  finally:
-    deleteLock(lock)
+  processFiles(files)
 
 
 if __name__ == '__main__':
