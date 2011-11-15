@@ -23,7 +23,6 @@ import json
 import os
 import time
 import os.path
-import stat
 import sys
 import urllib2, httplib
 import fcntl
@@ -40,6 +39,10 @@ MAX_RUN_TIME = 40
 
 # Settings dict will be used to pass "server" and "secretKey" around.
 SETTINGS = {}
+
+# Documents processed and total. These are global stats.
+DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL = 0, 0
+
 
 def trimDict(obj):
   """Trim string elements in a dictionnary to MAX_FIELD_SIZE"""
@@ -83,6 +86,8 @@ def sendException(jsonData, filename):
   if status != 200:
     raise Exception('Unexpected status code: %d' % status)
 
+  global DOCUMENTS_PROCESSED            # pylint: disable=W0603
+  DOCUMENTS_PROCESSED += 1
   return True
 
 
@@ -135,7 +140,8 @@ def processFile(filename):
         
 def alarmHandler(*_):
   """SIGALRM handler"""
-  print >> sys.stderr, "Maximum run time reached, exiting"
+  print >> sys.stderr, "Maximum run time reached after processing %d of %d exceptions. Exiting." \
+        % (DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL)
   sys.exit(0)
 
 
@@ -158,6 +164,8 @@ LOCKNAME defaults to 'upload-lock'"""
 
   files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".gec.json")]
 
+  global DOCUMENTS_TOTAL                # pylint: disable=W0603
+  DOCUMENTS_TOTAL = len(files)
   processFiles(files)
 
 
