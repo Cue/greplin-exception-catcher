@@ -27,6 +27,7 @@ import sys
 import urllib2, httplib
 import fcntl
 import signal
+import traceback
 
 # max field size
 MAX_FIELD_SIZE = 1024 * 10
@@ -138,10 +139,11 @@ def processFile(filename):
 
 
         
-def alarmHandler(*_):
+def alarmHandler(_, frame):
   """SIGALRM handler"""
   print >> sys.stderr, "Maximum run time reached after processing %d of %d exceptions. Exiting." \
         % (DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL)
+  traceback.print_stack(frame, file=sys.stderr)
   sys.exit(0)
 
 
