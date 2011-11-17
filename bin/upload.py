@@ -42,7 +42,7 @@ MAX_RUN_TIME = 40
 SETTINGS = {}
 
 # Documents processed and total. These are global stats.
-DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL = 0, 0
+DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL = 0, '[unknown]'
 
 
 def trimDict(obj):
