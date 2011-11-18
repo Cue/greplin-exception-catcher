@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
- * log4j appender that writes exceptions to a file.
+ * log4j appender that writes exceptions to a file to be picked up by upload.py.
  */
 public final class GecAppender extends AppenderSkeleton {
   /**
@@ -107,6 +107,12 @@ public final class GecAppender extends AppenderSkeleton {
   @Override
   protected void append(final LoggingEvent loggingEvent) {
     try {
+      if (loggingEvent.getThrowableInformation() == null
+          && loggingEvent.getLevel().toInt() < Level.ERROR.toInt()) {
+        // Ignore non-exception non-errors.
+        return;
+      }
+
       String errorId = BASENAME + (ERROR_ID.incrementAndGet() % MAX_ERRORS);
       String filename = errorId + ".gec.json";
       File output = new File(outputDirectory, filename + ".writing");
