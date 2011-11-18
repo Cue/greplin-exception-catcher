@@ -119,12 +119,18 @@ public final class GecAppender extends AppenderSkeleton {
       Writer writer = new FileWriter(output);
 
       if (loggingEvent.getThrowableInformation() == null) {
-        writeFormattedException(loggingEvent.getRenderedMessage(), writer);
+        writeFormattedException(
+            loggingEvent.getRenderedMessage(),
+            loggingEvent.getLevel(),
+            writer);
       } else {
         Throwable throwable =
             loggingEvent.getThrowableInformation().getThrowable();
         writeFormattedException(
-            loggingEvent.getRenderedMessage(), throwable, writer);
+            loggingEvent.getRenderedMessage(),
+            throwable,
+            loggingEvent.getLevel(),
+            writer);
       }
 
       writer.close();
@@ -167,10 +173,12 @@ public final class GecAppender extends AppenderSkeleton {
    * Writes a formatted msg for errors that don't have exceptions.
    *
    * @param message the log message
+   * @param level   the error level
    * @param out     the destination
    * @throws IOException if there are IO errors in the destination
    */
   void writeFormattedException(final String message,
+                               final Level level,
                                final Writer out)
       throws IOException {
     JsonGenerator generator = new JsonFactory().createJsonGenerator(out);
@@ -194,6 +202,9 @@ public final class GecAppender extends AppenderSkeleton {
     generator.writeStringField("message", message);
     generator.writeStringField("logMessage", message);
     generator.writeStringField("type", "N/A");
+    if (level != Level.ERROR) {
+      generator.writeStringField("errorLevel", level.toString());
+    }
     writeContext(generator);
     generator.writeEndObject();
     generator.close();
@@ -204,11 +215,13 @@ public final class GecAppender extends AppenderSkeleton {
    *
    * @param message   the log message
    * @param throwable the exception
+   * @param level     the error level
    * @param out       the destination
    * @throws IOException if there are IO errors in the destination
    */
   void writeFormattedException(final String message,
                                final Throwable throwable,
+                               final Level level,
                                final Writer out)
       throws IOException {
     JsonGenerator generator = new JsonFactory().createJsonGenerator(out);
@@ -228,6 +241,9 @@ public final class GecAppender extends AppenderSkeleton {
     generator.writeStringField("message", rootThrowable.getMessage());
     generator.writeStringField("logMessage", message);
     generator.writeStringField("type", rootThrowable.getClass().getName());
+    if (level != Level.ERROR) {
+      generator.writeStringField("errorLevel", level.toString());
+    }
     writeContext(generator);
     generator.writeEndObject();
     generator.close();
