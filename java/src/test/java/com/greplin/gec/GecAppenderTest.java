@@ -17,6 +17,7 @@
 package com.greplin.gec;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.log4j.Level;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Assert;
@@ -54,7 +55,7 @@ public class GecAppenderTest {
       throw new IllegalArgumentException(MESSAGE);
     } catch (IllegalArgumentException e) {
       StringWriter writer = new StringWriter();
-      appender.writeFormattedException(LOG_MESSAGE, e, writer);
+      appender.writeFormattedException(LOG_MESSAGE, e, Level.ERROR, writer);
 
       JsonNode root = parseJson(writer.toString());
       assertField(root, "project", PROJECT);
@@ -70,7 +71,7 @@ public class GecAppenderTest {
   @Test
   public void testNonExceptionAppender() throws IOException {
     StringWriter writer = new StringWriter();
-    appender.writeFormattedException("Error while rendering request", writer);
+    appender.writeFormattedException("Error while rendering request", Level.ERROR, writer);
 
     JsonNode root = parseJson(writer.toString());
     assertField(root, "project", PROJECT);
