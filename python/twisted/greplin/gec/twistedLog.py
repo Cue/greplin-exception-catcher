@@ -71,6 +71,9 @@ class GecLogObserver(object):
     elif extras:
       result['context'] = extras
 
+    if extras and 'level' in extras:
+      result['errorLevel'] = extras['errorLevel']
+
     return result
 
 
