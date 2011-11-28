@@ -49,7 +49,7 @@ class GecHandler(logging.Handler):
       'project': self.__project,
       'environment': self.__environment,
       'serverName': self.__serverName,
-      'level': item.levelname,
+      'errorLevel': item.levelname,
     }
     result.update(formatted)
     self.write(json.dumps(result))
