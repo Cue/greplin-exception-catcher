@@ -48,7 +48,8 @@ class GecHandler(logging.Handler):
     result = {
       'project': self.__project,
       'environment': self.__environment,
-      'serverName': self.__serverName
+      'serverName': self.__serverName,
+      'level': item.levelname,
     }
     result.update(formatted)
     self.write(json.dumps(result))
@@ -68,7 +69,7 @@ class GecHandler(logging.Handler):
       itemMessage = item.getMessage()
     except TypeError:
       itemMessage = 'Error formatting message'
-      
+
     return {
       'type': "%s message" % item.levelname,
       'message': itemMessage,
@@ -96,18 +97,18 @@ class GecHandler(logging.Handler):
 
 
 class GentleGecHandler(GecHandler):
-  """A GEC Handler that conserves disk space by overwriting errors  
+  """A GEC Handler that conserves disk space by overwriting errors
   """
-    
+
   MAX_BASENAME = 10
   MAX_ERRORS = 10000
 
-    
+
   def __init__(self, path, project, environment, serverName, prepareException=None):
     GecHandler.__init__(self, path, project, environment, serverName, prepareException)
     self.baseName = random.randint(0, GentleGecHandler.MAX_BASENAME)
     self.errorId = random.randint(0, GentleGecHandler.MAX_ERRORS)
-    
+
 
   def write(self, output):
     self.errorId = (self.errorId + 1) % GentleGecHandler.MAX_ERRORS
@@ -178,4 +179,4 @@ class SpaceAwareGecHandler(GecHandler):
     if self.checkSpace():
       GecHandler.emit(self, item)
 
-      
+
