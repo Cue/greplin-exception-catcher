@@ -141,7 +141,7 @@ def processFile(filename):
         
 def alarmHandler(_, frame):
   """SIGALRM handler"""
-  print >> sys.stderr, "Maximum run time reached after processing %d of %d exceptions. Exiting." \
+  print >> sys.stderr, "Maximum run time reached after processing %s of %s exceptions. Exiting." \
         % (DOCUMENTS_PROCESSED, DOCUMENTS_TOTAL)
   traceback.print_stack(frame, file=sys.stderr)
   sys.exit(0)
