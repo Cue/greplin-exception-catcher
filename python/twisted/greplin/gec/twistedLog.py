@@ -72,7 +72,7 @@ class GecLogObserver(object):
       result['context'] = extras
 
     if extras and 'level' in extras:
-      result['errorLevel'] = extras['errorLevel']
+      result['errorLevel'] = extras['level']
 
     return result
 
