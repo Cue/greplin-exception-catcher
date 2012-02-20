@@ -63,6 +63,11 @@ class GecLogObserver(object):
       'logMessage': logMessage,
       'backtrace': backtrace
     }
+
+    if extras and 'level' in extras:
+      result['errorLevel'] = extras['level']
+      del extras['level']
+
     if context and context.all():
       result['context'] = context.all()
       if extras:
@@ -70,9 +75,6 @@ class GecLogObserver(object):
         result['context'].update(extras)
     elif extras:
       result['context'] = extras
-
-    if extras and 'level' in extras:
-      result['errorLevel'] = extras['level']
 
     return result
 
