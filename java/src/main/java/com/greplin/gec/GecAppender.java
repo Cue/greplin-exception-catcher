@@ -294,4 +294,24 @@ public final class GecAppender extends AppenderSkeleton {
       final Class<? extends Throwable> exceptionClass) {
     passthroughExceptions.add(exceptionClass);
   }
+
+
+  /**
+   * Adds a class that can be considered a container of exceptions only.
+   * Adds by name, but does not throw if the class is not found.
+   *
+   * @param name the exception class
+   * @return true if the class exists and was added, false otherwise
+   */
+  @SuppressWarnings("unchecked")
+  public boolean addPassthroughExceptionClass(final String name) {
+    try {
+      addPassthroughExceptionClass(
+          (Class<? extends Throwable>) Class.forName(name));
+    } catch (ClassNotFoundException ex) {
+      return false;
+    }
+    return true;
+  }
+
 }
