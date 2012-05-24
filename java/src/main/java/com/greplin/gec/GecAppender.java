@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class GecAppender extends AppenderSkeleton {
   /**
    * Number of prefixes to use to reduce risk of server invocations overwriting
-   * eachother's error logs.
+   * each other's error logs.
    */
   private static final int MAX_BASENAME = 10;
 
@@ -52,7 +52,7 @@ public final class GecAppender extends AppenderSkeleton {
 
   /**
    * Base name for error files.  Used to reduce risk of server invocations
-   * clobbering eachother's error logs.
+   * clobbering each other's error logs.
    */
   private static final String BASENAME;
 
@@ -100,8 +100,8 @@ public final class GecAppender extends AppenderSkeleton {
    */
   public GecAppender() {
     setThreshold(Level.ERROR);
-    passthroughExceptions = new HashSet<Class<? extends Throwable>>();
-    passthroughExceptions.add(InvocationTargetException.class);
+    this.passthroughExceptions = new HashSet<Class<? extends Throwable>>();
+    this.passthroughExceptions.add(InvocationTargetException.class);
   }
 
   @Override
@@ -115,7 +115,7 @@ public final class GecAppender extends AppenderSkeleton {
 
       String errorId = BASENAME + (ERROR_ID.incrementAndGet() % MAX_ERRORS);
       String filename = errorId + ".gec.json";
-      File output = new File(outputDirectory, filename + ".writing");
+      File output = new File(this.outputDirectory, filename + ".writing");
       Writer writer = new FileWriter(output);
 
       if (loggingEvent.getThrowableInformation() == null) {
@@ -135,10 +135,11 @@ public final class GecAppender extends AppenderSkeleton {
 
       writer.close();
 
-      if (!output.renameTo(new File(outputDirectory, filename))) {
+      if (!output.renameTo(new File(this.outputDirectory, filename))) {
         System.err.println("Could not rename to " + filename);
       }
     } catch (IOException e) {
+      System.err.println("GEC failed to append: " + e.getMessage());
       e.printStackTrace();
     }
   }
@@ -195,9 +196,9 @@ public final class GecAppender extends AppenderSkeleton {
     backtrace = builder.toString();
 
     generator.writeStartObject();
-    generator.writeStringField("project", project);
-    generator.writeStringField("environment", environment);
-    generator.writeStringField("serverName", serverName);
+    generator.writeStringField("project", this.project);
+    generator.writeStringField("environment", this.environment);
+    generator.writeStringField("serverName", this.serverName);
     generator.writeStringField("backtrace", backtrace);
     generator.writeStringField("message", message);
     generator.writeStringField("logMessage", message);
@@ -227,15 +228,15 @@ public final class GecAppender extends AppenderSkeleton {
     JsonGenerator generator = new JsonFactory().createJsonGenerator(out);
 
     Throwable rootThrowable = throwable;
-    while (passthroughExceptions.contains(rootThrowable.getClass())
+    while (this.passthroughExceptions.contains(rootThrowable.getClass())
         && rootThrowable.getCause() != null) {
       rootThrowable = rootThrowable.getCause();
     }
 
     generator.writeStartObject();
-    generator.writeStringField("project", project);
-    generator.writeStringField("environment", environment);
-    generator.writeStringField("serverName", serverName);
+    generator.writeStringField("project", this.project);
+    generator.writeStringField("environment", this.environment);
+    generator.writeStringField("serverName", this.serverName);
     generator.writeStringField("backtrace",
         ExceptionUtils.getStackTrace(throwable));
     generator.writeStringField("message", rootThrowable.getMessage());
@@ -292,7 +293,7 @@ public final class GecAppender extends AppenderSkeleton {
    */
   public void addPassthroughExceptionClass(
       final Class<? extends Throwable> exceptionClass) {
-    passthroughExceptions.add(exceptionClass);
+    this.passthroughExceptions.add(exceptionClass);
   }
 
 
