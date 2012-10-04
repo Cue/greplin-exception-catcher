@@ -108,8 +108,8 @@ public final class GecAppender extends AppenderSkeleton {
   protected void append(final LoggingEvent loggingEvent) {
     try {
       if (loggingEvent.getThrowableInformation() == null
-          && loggingEvent.getLevel().toInt() < Level.ERROR.toInt()) {
-        // Ignore non-exception non-errors.
+          && loggingEvent.getLevel().toInt() < this.threshold.toInt()) {
+        // Ignore non-exceptions below our threshold.
         return;
       }
 
