@@ -41,10 +41,8 @@ class GecHandler(logging.Handler):
     """Emit an error from the given event, if it was an error event."""
     if item.exc_info:
       formatted = self.formatException(item)
-    elif item.levelname == "ERROR":
-      formatted = self.formatLogMessage(item)
     else:
-      return
+      formatted = self.formatLogMessage(item)
     result = {
       'project': self.__project,
       'environment': self.__environment,
