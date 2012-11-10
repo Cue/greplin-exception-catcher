@@ -28,12 +28,12 @@ class GecHandler(logging.Handler):
   """Log observer that writes exceptions to json files to be picked up by upload.py."""
 
 
-  def __init__(self, path, project, environment, serverName, prepareException=None):
+  def __init__(self, path, project, environment, serverName, prepareMessage=None):
     self.__path = path
     self.__project = project
     self.__environment = environment
     self.__serverName = serverName
-    self.__prepareException = prepareException
+    self.__prepareMessage = prepareMessage
     logging.Handler.__init__(self)
 
 
@@ -68,11 +68,14 @@ class GecHandler(logging.Handler):
     except TypeError:
       itemMessage = 'Error formatting message'
 
-    return {
+    log = {
       'type': "%s message" % item.levelname,
       'message': itemMessage,
       'backtrace': "%s:%d at %s" % (item.module, item.lineno, item.pathname)
     }
+    if self.__prepareMessage:
+      return self.__prepareMessage(log)
+    return log
 
 
   def formatException(self, item):
@@ -83,8 +86,8 @@ class GecHandler(logging.Handler):
       'logMessage': getattr(item, 'message', None) or getattr(item, 'msg', None),
       'backtrace': item.exc_text
     }
-    if self.__prepareException:
-      return self.__prepareException(exception)
+    if self.__prepareMessage:
+      return self.__prepareMessage(exception)
     return exception
 
 
