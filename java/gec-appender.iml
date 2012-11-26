@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module org.jetbrains.idea.maven.project.MavenProjectsManager.isMavenModule="true" type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_6" inherit-compiler-output="false">
+    <output url="file:///var/greplin/src/greplin-exception-catcher/java/target/classes" />
+    <output-test url="file:///var/greplin/src/greplin-exception-catcher/java/target/test-classes" />
+    <content url="file:///var/greplin/src/greplin-exception-catcher/java">
+      <sourceFolder url="file:///var/greplin/src/greplin-exception-catcher/java/src/main/java" isTestSource="false" />
+      <sourceFolder url="file:///var/greplin/src/greplin-exception-catcher/java/src/test/java" isTestSource="true" />
+      <sourceFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/generated-sources/test-annotations" isTestSource="true" />
+      <sourceFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/generated-sources/annotations" isTestSource="false" />
+      <excludeFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/classes" />
+      <excludeFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/maven-archiver" />
+      <excludeFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/surefire" />
+      <excludeFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/surefire-reports" />
+      <excludeFolder url="file:///var/greplin/src/greplin-exception-catcher/java/target/test-classes" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Maven: org.codehaus.jackson:jackson-core-asl:1.9.1" level="project" />
+    <orderEntry type="library" name="Maven: commons-lang:commons-lang:2.4" level="project" />
+    <orderEntry type="library" name="Maven: log4j:log4j:1.2.16" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.8.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.codehaus.jackson:jackson-mapper-asl:1.7.1" level="project" />
+  </component>
+</module>
+
