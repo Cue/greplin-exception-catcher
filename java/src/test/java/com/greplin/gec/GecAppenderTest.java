@@ -16,10 +16,11 @@
 
 package com.greplin.gec;
 
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Level;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -80,7 +81,7 @@ public class GecAppenderTest {
     assertField(root, "message", LOG_MESSAGE);
     assertField(root, "logMessage", LOG_MESSAGE);
     assertField(root, "type", "N/A");
-    String backtrace = root.path("backtrace").getTextValue();
+    String backtrace = root.path("backtrace").asText();
     Assert.assertTrue(backtrace.contains("testNonExceptionAppender"));
     Assert.assertFalse(backtrace.contains("writeFormattedException"));
   }
@@ -104,6 +105,6 @@ public class GecAppenderTest {
    * @param value the expected value
    */
   private void assertField(JsonNode root, String field, String value) {
-    Assert.assertEquals(value, root.path(field).getTextValue());
+    Assert.assertEquals(value, root.path(field).asText());
   }
 }

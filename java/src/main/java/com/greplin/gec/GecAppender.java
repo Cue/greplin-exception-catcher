@@ -16,12 +16,12 @@
 
 package com.greplin.gec;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -158,7 +158,7 @@ public final class GecAppender extends AppenderSkeleton {
    * @param generator where to write the context
    * @throws IOException if there are IO errors in the destination
    */
-  private void writeContext(final JsonGenerator generator) throws IOException {
+  private void writeContext(final JsonGenerator  generator) throws IOException {
     Map<String, String> context = GecContext.get();
     if (!context.isEmpty()) {
       generator.writeFieldName("context");
