@@ -61,7 +61,8 @@ class GecLogObserver(object):
       'environment': self.__environment,
       'serverName': self.__serverName,
       'logMessage': logMessage,
-      'backtrace': backtrace
+      'backtrace': backtrace,
+      'loggedFrom': '\n'.join(traceback.format_stack())
     }
 
     if extras and 'level' in extras:
@@ -115,8 +116,7 @@ class GecLogObserver(object):
 
 
 class GentleGecLogObserver(GecLogObserver):
-  """ A GEC Handler that conserves disk space by overwriting errors
-  """
+  """A GEC Handler that conserves disk space by overwriting errors."""
 
   MAX_BASENAME = 10
   MAX_ERRORS = 10000
@@ -129,8 +129,7 @@ class GentleGecLogObserver(GecLogObserver):
 
 
   def write(self, output):
-    """Write a gec error report, possibly overwriting a previous one
-    """
+    """Write a gec error report, possibly overwriting a previous one."""
     self.errorId = (self.errorId + 1) % GentleGecLogObserver.MAX_ERRORS
     filename = os.path.join(self._GecHandler__path, '%d-%d.gec.json' % (self.baseName, self.errorId))
     with open(filename, 'w') as f:

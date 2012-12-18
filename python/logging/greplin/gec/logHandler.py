@@ -84,7 +84,8 @@ class GecHandler(logging.Handler):
       'type': item.exc_info[0].__module__ + '.' + item.exc_info[0].__name__,
       'message': str(item.exc_info[1]),
       'logMessage': getattr(item, 'message', None) or getattr(item, 'msg', None),
-      'backtrace': item.exc_text
+      'backtrace': item.exc_text,
+      'loggedFrom': "%s:%d at %s" % (item.module, item.lineno, item.pathname)
     }
     if self.__prepareMessage:
       return self.__prepareMessage(exception)
