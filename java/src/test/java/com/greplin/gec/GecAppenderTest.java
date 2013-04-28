@@ -44,10 +44,10 @@ public class GecAppenderTest {
 
   @Before
   public void setUp() {
-    appender = new GecAppender();
-    appender.setEnvironment(ENVIRONMENT);
-    appender.setProject(PROJECT);
-    appender.setServerName(SERVER_NAME);
+    this.appender = new GecAppender();
+    this.appender.setEnvironment(ENVIRONMENT);
+    this.appender.setProject(PROJECT);
+    this.appender.setServerName(SERVER_NAME);
   }
 
   @Test
@@ -56,7 +56,7 @@ public class GecAppenderTest {
       throw new IllegalArgumentException(MESSAGE);
     } catch (IllegalArgumentException e) {
       StringWriter writer = new StringWriter();
-      appender.writeFormattedException(LOG_MESSAGE, e, Level.ERROR, writer);
+      this.appender.writeFormattedException(LOG_MESSAGE, e, Level.ERROR, writer);
 
       JsonNode root = parseJson(writer.toString());
       assertField(root, "project", PROJECT);
@@ -72,7 +72,7 @@ public class GecAppenderTest {
   @Test
   public void testNonExceptionAppender() throws IOException {
     StringWriter writer = new StringWriter();
-    appender.writeFormattedException("Error while rendering request", Level.ERROR, writer);
+    this.appender.writeFormattedException("Error while rendering request", Level.ERROR, writer);
 
     JsonNode root = parseJson(writer.toString());
     assertField(root, "project", PROJECT);
