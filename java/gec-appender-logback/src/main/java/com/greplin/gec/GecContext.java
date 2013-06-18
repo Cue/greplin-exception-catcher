@@ -21,6 +21,8 @@ import java.util.Map;
 
 /**
  * ThreadLocal context for GEC.
+ * Note: duplicated in both gec-appender-log4j and gec-appender-logback.
+ * Really should be in a third module, but this feels overkill right now.
  */
 public final class GecContext {
   /**
