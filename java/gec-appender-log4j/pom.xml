@@ -9,7 +9,7 @@
   <artifactId>gec-appender-log4j</artifactId>
   <packaging>jar</packaging>
   <version>1.1-SNAPSHOT</version>
-  <name>GEC Appender</name>
+  <name>GEC Log4j Appender</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
