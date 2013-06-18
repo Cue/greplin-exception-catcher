@@ -188,7 +188,7 @@ public final class GecLog4jAppender extends AppenderSkeleton {
     String[] lines = backtrace.split("\n");
     StringBuilder builder = new StringBuilder();
     for (String line : lines) {
-      if (!line.contains("com.greplin.gec.GecAppender.")) {
+      if (!line.contains("com.greplin.gec.GecLog4jAppender.")) {
         builder.append(line);
         builder.append("\n");
       }

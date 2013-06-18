@@ -193,7 +193,7 @@ public final class GecLogbackAppender extends AppenderBase<ILoggingEvent> {
     String[] lines = backtrace.split("\n");
     StringBuilder builder = new StringBuilder();
     for (String line : lines) {
-      if (!line.contains("com.greplin.gec.GecAppender.")) {
+      if (!line.contains("com.greplin.gec.GecLogbackAppender.")) {
         builder.append(line);
         builder.append("\n");
       }
