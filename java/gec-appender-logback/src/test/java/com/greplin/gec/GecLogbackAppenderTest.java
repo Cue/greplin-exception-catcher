@@ -30,7 +30,7 @@ import java.io.StringWriter;
 /**
  * Tests for the GecAppender.
  */
-public class GecAppenderTest {
+public class GecLogbackAppenderTest {
   private static final String ENVIRONMENT = "prod";
   private static final String PROJECT = "secretTown";
   private static final String SERVER_NAME = "secretTown FE 1";
@@ -38,12 +38,12 @@ public class GecAppenderTest {
   private static final String MESSAGE = "Illegal in 50 states";
   private static final String TYPE = IllegalArgumentException.class.getCanonicalName();
 
-  GecAppender appender;
+  GecLogbackAppender appender;
 
 
   @Before
   public void setUp() {
-    appender = new GecAppender();
+    appender = new GecLogbackAppender();
     appender.setEnvironment(ENVIRONMENT);
     appender.setProject(PROJECT);
     appender.setServerName(SERVER_NAME);
@@ -61,7 +61,7 @@ public class GecAppenderTest {
       assertField(root, "project", PROJECT);
       assertField(root, "environment", ENVIRONMENT);
       assertField(root, "serverName", SERVER_NAME);
-      assertField(root, "backtrace", GecAppender.getStackTrace(e));
+      assertField(root, "backtrace", GecLogbackAppender.getStackTrace(e));
       assertField(root, "message", MESSAGE);
       assertField(root, "logMessage", LOG_MESSAGE);
       assertField(root, "type", TYPE);

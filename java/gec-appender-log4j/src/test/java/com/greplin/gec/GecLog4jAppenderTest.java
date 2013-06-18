@@ -31,7 +31,7 @@ import java.io.StringWriter;
 /**
  * Tests for the GecAppender.
  */
-public class GecAppenderTest {
+public class GecLog4jAppenderTest {
   private static final String ENVIRONMENT = "prod";
   private static final String PROJECT = "secretTown";
   private static final String SERVER_NAME = "secretTown FE 1";
@@ -39,12 +39,12 @@ public class GecAppenderTest {
   private static final String MESSAGE = "Illegal in 50 states";
   private static final String TYPE = IllegalArgumentException.class.getCanonicalName();
 
-  GecAppender appender;
+  GecLog4jAppender appender;
 
 
   @Before
   public void setUp() {
-    this.appender = new GecAppender();
+    this.appender = new GecLog4jAppender();
     this.appender.setEnvironment(ENVIRONMENT);
     this.appender.setProject(PROJECT);
     this.appender.setServerName(SERVER_NAME);

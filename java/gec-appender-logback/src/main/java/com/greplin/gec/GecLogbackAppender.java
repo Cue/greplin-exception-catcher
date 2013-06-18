@@ -16,12 +16,16 @@
 
 package com.greplin.gec;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.StackTraceElementProxy;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
+import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.core.CoreConstants;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.Level;
-import org.apache.log4j.spi.LoggingEvent;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -34,11 +38,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-
 /**
  * log4j appender that writes exceptions to a file to be picked up by upload.py.
  */
-public final class GecAppender extends AppenderSkeleton {
+public final class GecLogbackAppender extends AppenderBase<ILoggingEvent> {
   /**
    * Number of prefixes to use to reduce risk of server invocations overwriting
    * each other's error logs.
@@ -93,22 +96,35 @@ public final class GecAppender extends AppenderSkeleton {
   /**
    * Set of classes that only exist to contain exceptions.
    */
-  private final Set<Class<? extends Throwable>> passthroughExceptions;
+  private final Set<String> passthroughExceptions;
 
   /**
    * Creates a new appender.
    */
-  public GecAppender() {
-    setThreshold(Level.ERROR);
-    this.passthroughExceptions = new HashSet<Class<? extends Throwable>>();
-    this.passthroughExceptions.add(InvocationTargetException.class);
+  public GecLogbackAppender() {
+    // setThreshold(Level.ERROR); // FIXME: replaced by filters ?
+    this.passthroughExceptions = new HashSet<String>();
+    this.passthroughExceptions.add(
+        InvocationTargetException.class.getCanonicalName());
   }
 
   @Override
-  protected void append(final LoggingEvent loggingEvent) {
+  public void start() {
+    /* FIXME outdated docs ?
+    if (this.layout == null) {
+      addError("No layout set for the appender named [" + name + "].");
+      return;
+    }
+    */
+    super.start();
+  }
+
+  @Override
+  protected void append(final ILoggingEvent loggingEvent) {
+
     try {
-      if (loggingEvent.getThrowableInformation() == null
-          && loggingEvent.getLevel().toInt() < this.threshold.toInt()) {
+      if (loggingEvent.getThrowableProxy() == null
+          && loggingEvent.getLevel().toInt() < Level.ERROR_INT) {
         // Ignore non-exceptions below our threshold.
         return;
       }
@@ -118,17 +134,15 @@ public final class GecAppender extends AppenderSkeleton {
       File output = new File(this.outputDirectory, filename + ".writing");
       Writer writer = new FileWriter(output);
 
-      if (loggingEvent.getThrowableInformation() == null) {
+      if (loggingEvent.getThrowableProxy() == null) {
         writeFormattedException(
-            loggingEvent.getRenderedMessage(),
+            loggingEvent.getMessage(),
             loggingEvent.getLevel(),
             writer);
       } else {
-        Throwable throwable =
-            loggingEvent.getThrowableInformation().getThrowable();
         writeFormattedException(
-            loggingEvent.getRenderedMessage(),
-            throwable,
+            loggingEvent.getMessage(),
+            loggingEvent.getThrowableProxy(),
             loggingEvent.getLevel(),
             writer);
       }
@@ -142,15 +156,6 @@ public final class GecAppender extends AppenderSkeleton {
       System.err.println("GEC failed to append: " + e.getMessage());
       e.printStackTrace();
     }
-  }
-
-  @Override
-  public void close() {
-  }
-
-  @Override
-  public boolean requiresLayout() {
-    return false;
   }
 
   /**
@@ -184,7 +189,7 @@ public final class GecAppender extends AppenderSkeleton {
       throws IOException {
     JsonGenerator generator = new JsonFactory().createJsonGenerator(out);
 
-    String backtrace = ExceptionUtils.getFullStackTrace(new Exception());
+    String backtrace = GecLogbackAppender.getStackTrace(new Throwable());
     String[] lines = backtrace.split("\n");
     StringBuilder builder = new StringBuilder();
     for (String line : lines) {
@@ -223,12 +228,29 @@ public final class GecAppender extends AppenderSkeleton {
   void writeFormattedException(final String message,
                                final Throwable throwable,
                                final Level level,
-                               final Writer out)
+                               final Writer out) throws IOException {
+    this.writeFormattedException(message,
+        new ThrowableProxy(throwable), level, out);
+  }
+
+  /**
+   * Writes a formatted exception to the given writer.
+   *
+   * @param message   the log message
+   * @param throwableProxy the exception
+   * @param level     the error level
+   * @param out       the destination
+   * @throws IOException if there are IO errors in the destination
+   */
+  private void writeFormattedException(final String message,
+                                       final IThrowableProxy throwableProxy,
+                                       final Level level,
+                                       final Writer out)
       throws IOException {
     JsonGenerator generator = new JsonFactory().createJsonGenerator(out);
 
-    Throwable rootThrowable = throwable;
-    while (this.passthroughExceptions.contains(rootThrowable.getClass())
+    IThrowableProxy rootThrowable = throwableProxy;
+    while (this.passthroughExceptions.contains(rootThrowable.getClassName())
         && rootThrowable.getCause() != null) {
       rootThrowable = rootThrowable.getCause();
     }
@@ -237,17 +259,44 @@ public final class GecAppender extends AppenderSkeleton {
     generator.writeStringField("project", this.project);
     generator.writeStringField("environment", this.environment);
     generator.writeStringField("serverName", this.serverName);
-    generator.writeStringField("backtrace",
-        ExceptionUtils.getStackTrace(throwable));
+    // FIXME this was 'throwable'
+    generator.writeStringField("backtrace", getStackTrace(rootThrowable));
     generator.writeStringField("message", rootThrowable.getMessage());
     generator.writeStringField("logMessage", message);
-    generator.writeStringField("type", rootThrowable.getClass().getName());
+    generator.writeStringField("type", rootThrowable.getClassName());
     if (level != Level.ERROR) {
       generator.writeStringField("errorLevel", level.toString());
     }
     writeContext(generator);
     generator.writeEndObject();
     generator.close();
+  }
+
+
+  /**
+   * Renders a stacktrace.
+   * @param throwableProxy an IThrowableProxy
+   * @return a string rendering of the stack trace
+   */
+  protected static String getStackTrace(final IThrowableProxy throwableProxy) {
+    StringBuilder builder = new StringBuilder();
+    for (StackTraceElementProxy step
+        : throwableProxy.getStackTraceElementProxyArray()) {
+      String string = step.toString();
+      builder.append(CoreConstants.TAB).append(string);
+      ThrowableProxyUtil.subjoinPackagingData(builder, step);
+      builder.append(CoreConstants.LINE_SEPARATOR);
+    }
+    return builder.toString();
+  }
+
+  /**
+   * Renders a stacktrace.
+   * @param t a throwable
+   * @return a string rendering of the stack trace
+   */
+  protected static String getStackTrace(final Throwable t) {
+    return GecLogbackAppender.getStackTrace(new ThrowableProxy(t));
   }
 
   /**
@@ -293,7 +342,7 @@ public final class GecAppender extends AppenderSkeleton {
    */
   public void addPassthroughExceptionClass(
       final Class<? extends Throwable> exceptionClass) {
-    this.passthroughExceptions.add(exceptionClass);
+    this.passthroughExceptions.add(exceptionClass.getCanonicalName());
   }
 
 
@@ -306,12 +355,7 @@ public final class GecAppender extends AppenderSkeleton {
    */
   @SuppressWarnings("unchecked")
   public boolean addPassthroughExceptionClass(final String name) {
-    try {
-      addPassthroughExceptionClass(
-          (Class<? extends Throwable>) Class.forName(name));
-    } catch (ClassNotFoundException ex) {
-      return false;
-    }
+    addPassthroughExceptionClass(name);
     return true;
   }
 
