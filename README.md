@@ -135,7 +135,7 @@ GEC currently requires that you attach it to a single Google Apps domain for log
 
 In log4j.properties:
 
-    log4j.appender.gec=com.greplin.gec.GecAppender
+    log4j.appender.gec=com.greplin.gec.GecLog4jAppender
     log4j.appender.gec.project=Project name
     log4j.appender.gec.outputDirectory=/path/to/exception/directory
     log4j.appender.gec.environment=prod/devel/etc.
