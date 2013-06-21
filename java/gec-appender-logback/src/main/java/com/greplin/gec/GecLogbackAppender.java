@@ -355,7 +355,12 @@ public final class GecLogbackAppender extends AppenderBase<ILoggingEvent> {
    */
   @SuppressWarnings("unchecked")
   public boolean addPassthroughExceptionClass(final String name) {
-    addPassthroughExceptionClass(name);
+    try {
+      addPassthroughExceptionClass(
+          (Class<? extends Throwable>) Class.forName(name));
+    } catch (ClassNotFoundException ex) {
+      return false;
+    }
     return true;
   }
 
